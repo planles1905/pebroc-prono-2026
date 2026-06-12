@@ -447,10 +447,10 @@ document.getElementById('btn-publish').onclick=async()=>{
     if(token){
       const content = btoa(unescape(encodeURIComponent(payload)));
       const headers = { 'Authorization':'token '+token, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json' };
-      const getR = await fetch('https://api.github.com/repos/planles1905/poufpouf-prono-2026/contents/resultats.json', { headers });
+      const getR = await fetch('https://api.github.com/repos/planles1905/pebroc-prono-2026/contents/resultats.json', { headers });
       if(!getR.ok) throw new Error('Impossible de lire le fichier GitHub');
       const info = await getR.json();
-      const putR = await fetch('https://api.github.com/repos/planles1905/poufpouf-prono-2026/contents/resultats.json', {
+      const putR = await fetch('https://api.github.com/repos/planles1905/pebroc-prono-2026/contents/resultats.json', {
         method:'PUT', headers,
         body: JSON.stringify({ message: 'Mise à jour des résultats', content, sha: info.sha })
       });
