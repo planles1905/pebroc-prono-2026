@@ -144,11 +144,8 @@ nav button.sel{color:var(--gold)}
   <section id="view-entry" class="view">
     <div class="sharebox">
       <p>Saisis les vrais scores et coche les bonnes réponses bonus : points et classement se mettent à jour instantanément, et tout reste enregistré sur cet appareil.</p>
-      <button class="btn publish" id="btn-publish" style="display:none">Publier sur GitHub ↑</button>
-      <button class="btn ghost" id="btn-admin-link" style="display:none">Copier mon lien admin</button>
+      <button class="btn admin-only" id="btn-publish" disabled>Publier les résultats</button>
       <button class="btn" id="btn-share">Partager le lien avec résultats</button>
-      <button class="btn ghost" id="btn-import">Coller un lien reçu</button>
-      <button class="btn ghost" id="btn-export">Exporter resultats.json</button>
     </div>
     <h2>Matchs de poules</h2>
     <div id="entrylist"></div>
@@ -316,14 +313,16 @@ function renderEntry(){
       const m=DB.matches[row], res=Array.isArray(results[row])?results[row]:['',''];
       const e=document.createElement('div'); e.className='entry';
       e.innerHTML='<div class="ename">'+m.t1+' – '+m.t2+'<small>'+m.label+'</small></div>'
-        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[0]+'" data-row="'+row+'" data-side="0">'
+        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[0]+'" data-row="'+row+'" data-side="0"'+(adminMode?'':' disabled')+'>'
         +'<span class="dash">–</span>'
-        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[1]+'" data-row="'+row+'" data-side="1">';
+        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[1]+'" data-row="'+row+'" data-side="1"'+(adminMode?'':' disabled')+'>';
       body.appendChild(e);
     });
     g.appendChild(head); g.appendChild(body); list.appendChild(g);
   });
-  list.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', onScoreInput));
+  if(adminMode){
+    list.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', onScoreInput));
+  }
 }
 function onScoreInput(ev){
   const row=ev.target.dataset.row, side=+ev.target.dataset.side;
@@ -363,14 +362,18 @@ function renderBonus(){
       const isOk=(bonus[q.row]||[]).includes(p);
       cell.className='acell'+(isOk?' ok':'');
       cell.innerHTML='<div class="pname">'+p+'</div><div class="aval">'+(a||'—')+'</div>';
-      cell.onclick=()=>{
-        const cur=bonus[q.row]||[];
-        bonus[q.row]= cur.includes(p) ? cur.filter(x=>x!==p) : cur.concat(p);
-        if(bonus[q.row].length===0) delete bonus[q.row];
-        persist(); renderBonus(); renderLB();
-        const reopened=[...document.querySelectorAll('.qcard')][DB.questions.indexOf(q)];
-        if(reopened) reopened.classList.add('open');
-      };
+      if(adminMode){
+        cell.onclick=()=>{
+          const cur=bonus[q.row]||[];
+          bonus[q.row]= cur.includes(p) ? cur.filter(x=>x!==p) : cur.concat(p);
+          if(bonus[q.row].length===0) delete bonus[q.row];
+          persist(); renderBonus(); renderLB();
+          const reopened=[...document.querySelectorAll('.qcard')][DB.questions.indexOf(q)];
+          if(reopened) reopened.classList.add('open');
+        };
+      } else {
+        cell.disabled = true;
+      }
       grid.appendChild(cell);
     });
     body.appendChild(grid);
@@ -414,40 +417,45 @@ document.getElementById('btn-share').onclick=()=>{
     ()=>{prompt('Copie ce lien :',url);}
   );
 };
-document.getElementById('btn-import').onclick=()=>{
-  const s=prompt('Colle ici le lien (ou code) reçu :');
-  if(!s) return;
-  const m=s.match(/d=([A-Za-z0-9_\-]+)/)||[null,s.trim()];
-  try{
-    const inc=JSON.parse(b64uDec(m[1]));
-    if(inc.r) results=Object.assign(results,inc.r);
-    if(inc.b) bonus=Object.assign(bonus,inc.b);
-    persist(); renderDay(); renderEntry(); renderBonus(); renderLB();
-    toast('Résultats importés ✓');
-  }catch(e){ toast('Code invalide'); }
-};
-document.getElementById('btn-export').onclick=()=>{
-  const clean={};
-  for(const k in results){ if(Array.isArray(results[k])) clean[k]=results[k]; }
-  const json=JSON.stringify({r:clean,b:bonus},null,2);
-  (navigator.clipboard?navigator.clipboard.writeText(json):Promise.reject()).then(
-    ()=>toast('JSON copié ✓ — colle dans resultats.json sur GitHub'),
-    ()=>{prompt('Copie ce JSON :',json);}
-  );
+
+document.getElementById('btn-publish').onclick=async()=>{
+  const token = prompt('Colle ton token GitHub personnel pour publier :');
+  if(!token) { toast('Publication annulée'); return; }
+  const btn = document.getElementById('btn-publish');
+  btn.textContent='Publication…'; btn.disabled=true;
+  try {
+    const clean={};
+    for(const k in results){ if(Array.isArray(results[k])) clean[k]=results[k]; }
+    const payload = JSON.stringify({r:clean,b:bonus}, null, 2);
+    const content = btoa(unescape(encodeURIComponent(payload)));
+    const headers = { 'Authorization':'Bearer '+token, 'Accept':'application/vnd.github+json', 'Content-Type':'application/json' };
+    const getR = await fetch('https://api.github.com/repos/planles1905/poufpouf-prono-2026/contents/resultats.json', { headers });
+    if(!getR.ok) throw new Error('Impossible de lire le fichier GitHub');
+    const info = await getR.json();
+    const putR = await fetch('https://api.github.com/repos/planles1905/poufpouf-prono-2026/contents/resultats.json', {
+      method:'PUT', headers,
+      body: JSON.stringify({ message: 'Mise à jour des résultats', content, sha: info.sha })
+    });
+    if(putR.ok) toast('Publié pour tous ✓');
+    else { const err = await putR.text(); console.error(err); toast('Erreur '+putR.status); }
+  } catch(e) {
+    console.error(e);
+    toast('Erreur de publication');
+  }
+  btn.textContent='Publier les résultats'; btn.disabled=false;
 };
 
 /* ---------- admin / publish ---------- */
 const ADMIN_PWD = 'poufpouf26';      // change si besoin
-const GH_TOKEN  = '';                // colle ton token GitHub ici
-const GH_REPO   = 'planles1905/poufpouf-prono-2026';
-const GH_FILE   = 'resultats.json';
 let adminMode = false;
 
 function setAdminMode(on){
   adminMode = on;
   document.getElementById('btn-admin-lock').textContent = on ? '🔓' : '🔒';
-  ['btn-publish','btn-admin-link'].forEach(id=>{
-    document.getElementById(id).style.display = on ? '' : 'none';
+  document.querySelectorAll('.admin-only').forEach(el=>{
+    el.style.display = on ? '' : 'none';
+    if(on) el.removeAttribute('disabled');
+    else el.setAttribute('disabled','');
   });
   const entryNav = document.querySelector('nav button[data-v="entry"]');
   if(entryNav){ entryNav.style.display = on ? '' : 'none'; }
@@ -462,38 +470,6 @@ document.getElementById('btn-admin-lock').onclick = ()=>{
   const pw = prompt('Mot de passe admin :');
   if(pw === ADMIN_PWD){ setAdminMode(true); toast('Mode admin activé ✓'); }
   else if(pw !== null) toast('Mot de passe incorrect');
-};
-
-document.getElementById('btn-publish').onclick = async ()=>{
-  if(!GH_TOKEN){ toast('Token GitHub manquant dans le code'); return; }
-  const btn = document.getElementById('btn-publish');
-  btn.textContent = 'Publication…'; btn.disabled = true;
-  try {
-    const clean = {};
-    for(const k in results){ if(Array.isArray(results[k])) clean[k] = results[k]; }
-    const payload = JSON.stringify({r:clean, b:bonus}, null, 2);
-    const b64 = btoa(unescape(encodeURIComponent(payload)));
-    const hdrs = {'Authorization':'Bearer '+GH_TOKEN,'Accept':'application/vnd.github+json','Content-Type':'application/json'};
-    const getR = await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE, {headers:hdrs});
-    const info  = await getR.json();
-    const putR  = await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE, {
-      method:'PUT', headers:hdrs,
-      body: JSON.stringify({
-        message: 'Résultats CDM 2026 — '+new Date().toLocaleDateString('fr-FR'),
-        content: b64, sha: info.sha
-      })
-    });
-    toast(putR.ok ? 'Publié ✓ — visible dans ~30 s' : 'Erreur '+putR.status);
-  } catch(e){ toast('Erreur réseau'); }
-  btn.textContent = 'Publier sur GitHub ↑'; btn.disabled = false;
-};
-
-document.getElementById('btn-admin-link').onclick = ()=>{
-  const url = location.origin + location.pathname + '#admin=' + ADMIN_PWD;
-  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(
-    ()=> toast('Lien admin copié ✓ — mets-le en favori'),
-    ()=> prompt('Copie ce lien :', url)
-  );
 };
 
 /* ---------- nav ---------- */
