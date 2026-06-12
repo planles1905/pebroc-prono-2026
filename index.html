@@ -147,12 +147,9 @@ nav button.sel{color:var(--gold)}
     <div class="sharebox">
       <p>Saisis les vrais scores et coche les bonnes réponses bonus : points et classement se mettent à jour instantanément, et tout reste enregistré sur cet appareil.</p>
       <button class="btn admin-only" id="btn-publish" disabled>Publier les résultats</button>
-      <button class="btn" id="btn-share">Partager le lien avec résultats</button>
-      <button class="btn ghost" id="btn-refresh-remote">Charger depuis GitHub</button>
       <div class="tokenbox admin-only" style="margin-top:8px; display:flex; gap:8px; align-items:center">
         <button class="btn ghost" id="btn-token">Saisir token GitHub</button>
         <button class="btn ghost" id="btn-token-clear">Supprimer token</button>
-        <a class="btn ghost" href="https://github.com/planles1905/poufpouf-prono-2026/edit/master/resultats.json" target="_blank" rel="noopener">Modifier sur GitHub</a>
         <div id="tokenStatus" style="color:var(--muted); font-size:.82rem; margin-left:6px">Token: (aucun)</div>
       </div>
     </div>
@@ -396,27 +393,12 @@ function renderLB(){
   });
 }
 
-/* ---------- share / import ---------- */
+/* ---------- utils ---------- */
 function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2200);
 }
-document.getElementById('btn-share').onclick=()=>{
-  const clean={};
-  for(const k in results){ if(Array.isArray(results[k])) clean[k]=results[k]; }
-  const url=location.origin+location.pathname+'#d='+b64uEnc(JSON.stringify({r:clean,b:bonus}));
-  (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(
-    ()=>toast('Lien copié ✓ — envoie-le au groupe'),
-    ()=>{prompt('Copie ce lien :',url);}
-  );
-};
-
-document.getElementById('btn-refresh-remote').onclick=()=>{
-  try{ localStorage.removeItem(SKEY); }catch(e){}
-  toast('Chargement depuis GitHub…');
-  setTimeout(()=>location.reload(),300);
-};
 
 function getGithubToken(){
   return sessionStorage.getItem('GHTOKEN') || localStorage.getItem('GHTOKEN') || null;
