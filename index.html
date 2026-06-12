@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PoufPouf Prono · CDM 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --pitch:#0C2E24; --panel:#123D30; --panel2:#17493A; --stroke:#1E5A47;
+  --chalk:#EDF6F0; --muted:#8FB5A6; --gold:#F4C95D; --win:#6FCB7C;
+  --gold-ink:#3A2D00; --win-ink:#0B3415;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:'Inter',-apple-system,system-ui,sans-serif;
+  background:var(--pitch); color:var(--chalk);
+  min-height:100vh; padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  background-image:repeating-linear-gradient(90deg, transparent 0 9.99%, rgba(255,255,255,.018) 10% 20%);
+}
+header{
+  padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
+  text-align:center; border-bottom:1px solid var(--stroke);
+  position:sticky; top:0; background:rgba(12,46,36,.92); backdrop-filter:blur(8px); z-index:20;
+}
+h1{font-family:'Bebas Neue',sans-serif; font-size:1.7rem; letter-spacing:.12em; line-height:1}
+h1 .star{color:var(--gold)}
+header small{color:var(--muted); font-size:.72rem; letter-spacing:.18em; text-transform:uppercase}
+main{max-width:560px; margin:0 auto; padding:14px 12px 0}
+.view{display:none} .view.active{display:block}
+h2{font-family:'Bebas Neue'; font-size:1.15rem; letter-spacing:.12em; color:var(--muted); margin:18px 2px 10px}
+
+.daybar{display:flex; gap:8px; overflow-x:auto; padding:4px 2px 12px; scrollbar-width:none}
+.daybar::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto; padding:8px 13px; border-radius:999px; font-size:.82rem; font-weight:600;
+  background:var(--panel); border:1px solid var(--stroke); color:var(--muted); cursor:pointer; white-space:nowrap}
+.chip.sel{background:var(--chalk); color:var(--pitch); border-color:var(--chalk)}
+.chip .n{font-family:'Bebas Neue'; letter-spacing:.06em; font-size:.9rem}
+
+.card{background:var(--panel); border:1px solid var(--stroke); border-radius:14px; margin-bottom:12px; overflow:hidden}
+.card-head{display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:11px 14px; border-bottom:1px solid var(--stroke); background:var(--panel2)}
+.teams{font-weight:700; font-size:.95rem; line-height:1.3}
+.mlabel{font-size:.66rem; color:var(--muted); letter-spacing:.14em; text-transform:uppercase}
+.result-pill{font-family:'Bebas Neue'; font-size:1.35rem; letter-spacing:.1em;
+  background:var(--pitch); border:1px solid var(--stroke); border-radius:9px; padding:2px 11px; min-width:64px; text-align:center}
+.result-pill.empty{color:var(--muted); font-size:.95rem; letter-spacing:.05em; font-family:'Inter'; font-weight:600}
+.pgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:7px; padding:11px}
+@media(min-width:430px){.pgrid{grid-template-columns:repeat(4,1fr)}}
+.pcell{background:var(--pitch); border:1px solid var(--stroke); border-radius:9px; padding:6px 4px 7px; text-align:center}
+.pcell .pname{font-size:.64rem; color:var(--muted); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pcell .psc{font-family:'Bebas Neue'; font-size:1.18rem; letter-spacing:.12em; margin-top:1px}
+.pcell.exact{background:var(--gold); border-color:var(--gold)}
+.pcell.exact .pname,.pcell.exact .psc{color:var(--gold-ink)}
+.pcell.good{background:var(--win); border-color:var(--win)}
+.pcell.good .pname,.pcell.good .psc{color:var(--win-ink)}
+.pcell.zero{opacity:.42}
+.pcell .pts{display:block; font-size:.6rem; font-weight:700}
+
+.daygroup{margin-bottom:8px; border:1px solid var(--stroke); border-radius:13px; overflow:hidden}
+.dg-head{width:100%; display:flex; justify-content:space-between; align-items:center;
+  padding:12px 14px; background:var(--panel2); border:none; color:var(--chalk); font:inherit; font-weight:700; cursor:pointer}
+.dg-head .cnt{font-size:.72rem; color:var(--muted); font-weight:600}
+.dg-body{display:none; background:var(--panel)}
+.daygroup.open .dg-body{display:block}
+.entry{display:flex; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid var(--stroke)}
+.entry .ename{flex:1; font-size:.84rem; font-weight:600; line-height:1.25}
+.entry .ename small{display:block; color:var(--muted); font-weight:500; font-size:.68rem}
+.entry input{width:46px; height:42px; text-align:center; font-family:'Bebas Neue'; font-size:1.3rem;
+  background:var(--pitch); color:var(--chalk); border:1px solid var(--stroke); border-radius:9px}
+.entry input:focus{outline:2px solid var(--gold); border-color:var(--gold)}
+.entry .dash{color:var(--muted)}
+.sharebox{background:var(--panel); border:1px solid var(--stroke); border-radius:13px; padding:14px; margin-bottom:14px}
+.sharebox p{font-size:.78rem; color:var(--muted); margin-bottom:10px; line-height:1.45}
+.btn{display:inline-block; font:inherit; font-weight:700; font-size:.85rem; background:var(--gold); color:var(--gold-ink);
+  border:none; border-radius:10px; padding:11px 16px; cursor:pointer; margin:0 8px 6px 0}
+.btn.ghost{background:transparent; color:var(--chalk); border:1px solid var(--stroke)}
+.toast{position:fixed; left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(8px);
+  background:var(--chalk); color:var(--pitch); font-weight:700; font-size:.82rem; padding:10px 18px; border-radius:999px;
+  opacity:0; pointer-events:none; transition:.25s; z-index:50}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+.qcard{border:1px solid var(--stroke); border-radius:13px; margin-bottom:8px; overflow:hidden; background:var(--panel)}
+.q-head{width:100%; display:flex; gap:10px; align-items:flex-start; padding:11px 13px; background:var(--panel2);
+  border:none; color:var(--chalk); font:inherit; text-align:left; cursor:pointer}
+.q-head .qpts{flex:0 0 auto; font-family:'Bebas Neue'; font-size:1rem; letter-spacing:.05em;
+  background:var(--pitch); border:1px solid var(--stroke); border-radius:7px; padding:2px 8px; color:var(--gold)}
+.q-head .qtxt{flex:1; font-size:.78rem; font-weight:600; line-height:1.35}
+.q-head .qok{flex:0 0 auto; font-size:.7rem; color:var(--muted); font-weight:600}
+.q-body{display:none; padding:10px 11px}
+.qcard.open .q-body{display:block}
+.q-hint{font-size:.68rem; color:var(--muted); margin-bottom:8px}
+.agrid{display:grid; grid-template-columns:repeat(2,1fr); gap:7px}
+@media(min-width:430px){.agrid{grid-template-columns:repeat(3,1fr)}}
+.acell{background:var(--pitch); border:1px solid var(--stroke); border-radius:9px; padding:7px 8px; cursor:pointer; text-align:left}
+.acell .pname{font-size:.62rem; color:var(--muted); font-weight:700}
+.acell .aval{font-size:.78rem; font-weight:600; line-height:1.3; word-break:break-word}
+.acell.ok{background:var(--gold); border-color:var(--gold)}
+.acell.ok .pname,.acell.ok .aval{color:var(--gold-ink)}
+
+.lb-meta{font-size:.74rem; color:var(--muted); text-align:center; margin-bottom:12px; letter-spacing:.06em}
+.lbrow{display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--stroke);
+  border-radius:12px; padding:11px 14px; margin-bottom:7px}
+.lbrow.lead{background:linear-gradient(100deg, var(--gold) 0%, #E8B83F 100%); border-color:var(--gold); color:var(--gold-ink)}
+.lbrow .rank{font-family:'Bebas Neue'; font-size:1.5rem; width:30px; text-align:center; color:var(--muted)}
+.lbrow.lead .rank{color:var(--gold-ink)}
+.lbrow .who{flex:1; font-weight:700; font-size:.98rem}
+.lbrow .detail{font-size:.66rem; color:var(--muted); font-weight:500; margin-top:1px}
+.lbrow.lead .detail{color:rgba(58,45,0,.75)}
+.lbrow .tot{font-family:'Bebas Neue'; font-size:1.75rem; letter-spacing:.04em}
+.bareme{text-align:center; font-size:.7rem; color:var(--muted); margin:16px 0 8px; line-height:1.7}
+.bareme b{color:var(--gold)} .bareme i{color:var(--win); font-style:normal}
+
+nav{position:fixed; bottom:0; left:0; right:0; z-index:30; display:flex;
+  background:rgba(10,38,29,.97); backdrop-filter:blur(10px); border-top:1px solid var(--stroke);
+  padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1; background:none; border:none; color:var(--muted); font:inherit; font-size:.68rem;
+  font-weight:700; letter-spacing:.05em; padding:10px 0 8px; cursor:pointer}
+nav button .ic{display:block; font-family:'Bebas Neue'; font-size:1.25rem; letter-spacing:.08em; margin-bottom:1px}
+nav button.sel{color:var(--gold)}
+</style>
+</head>
+<body>
+<header>
+  <h1>POUFPOUF <span class="star">★</span> PRONO</h1>
+  <small>Coupe du monde 2026 · 12 joueurs</small>
+</header>
+
+<main>
+  <section id="view-day" class="view active">
+    <div class="daybar" id="daybar"></div>
+    <div id="daymatches"></div>
+  </section>
+
+  <section id="view-entry" class="view">
+    <div class="sharebox">
+      <p>Saisis les vrais scores et coche les bonnes réponses bonus : points et classement se mettent à jour instantanément, et tout reste enregistré sur cet appareil.</p>
+      <button class="btn" id="btn-share">Partager le lien avec résultats</button>
+      <button class="btn ghost" id="btn-import">Coller un lien reçu</button>
+      <button class="btn ghost" id="btn-export">Exporter resultats.json</button>
+    </div>
+    <h2>Matchs de poules</h2>
+    <div id="entrylist"></div>
+    <h2>Questions bonus</h2>
+    <div id="bonuslist"></div>
+  </section>
+
+  <section id="view-lb" class="view">
+    <div class="lb-meta" id="lbmeta"></div>
+    <div id="lbrows"></div>
+    <div class="bareme">Barème poules : <b>13 pts</b> score exact · <i>6 pts</i> bon vainqueur ou nul · Bonus : <b>21 / 15 / 10 pts</b> selon la question<br>Phases finales : corrigées dans le fichier Excel en fin de tournoi</div>
+  </section>
+</main>
+
+<nav>
+  <button data-v="day" class="sel"><span class="ic">⚽</span>Matchs du jour</button>
+  <button data-v="entry"><span class="ic">0–0</span>Correction</button>
+  <button data-v="lb"><span class="ic">№1</span>Classement</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+const DB = {"matches": {"6": {"label": "Matchs A 1", "t1": "Mexique", "t2": "Afrique du Sud"}, "7": {"label": "Matchs A 2", "t1": "Mexique", "t2": "Corée du Sud"}, "8": {"label": "Matchs A 3", "t1": "Mexique", "t2": "Tchéquie"}, "9": {"label": "Matchs A 4", "t1": "Afrique du Sud", "t2": "Corée du Sud"}, "10": {"label": "Matchs A 5", "t1": "Afrique du Sud", "t2": "Tchéquie"}, "11": {"label": "Matchs A 6", "t1": "Corée du Sud", "t2": "Tchéquie"}, "13": {"label": "Matchs B 1", "t1": "Canada", "t2": "Bosnie Herzégovine"}, "14": {"label": "Matchs B 2", "t1": "Canada", "t2": "Qatar"}, "15": {"label": "Matchs B 3", "t1": "Canada", "t2": "Suisse"}, "16": {"label": "Matchs B 4", "t1": "Bosnie Herzégovine", "t2": "Qatar"}, "17": {"label": "Matchs B 5", "t1": "Bosnie Herzégovine", "t2": "Suisse"}, "18": {"label": "Matchs B 6", "t1": "Qatar", "t2": "Suisse"}, "20": {"label": "Matchs C 1", "t1": "Brésil", "t2": "Maroc"}, "21": {"label": "Matchs C 2", "t1": "Brésil", "t2": "Haiti"}, "22": {"label": "Matchs C 3", "t1": "Brésil", "t2": "Ecosse"}, "23": {"label": "Matchs C 4", "t1": "Maroc", "t2": "Haiti"}, "24": {"label": "Matchs C 5", "t1": "Maroc", "t2": "Ecosse"}, "25": {"label": "Matchs C 6", "t1": "Haiti", "t2": "Ecosse"}, "27": {"label": "Matchs D 1", "t1": "USA", "t2": "Paraguay"}, "28": {"label": "Matchs D 2", "t1": "USA", "t2": "Australie"}, "29": {"label": "Matchs D 3", "t1": "USA", "t2": "Turquie"}, "30": {"label": "Matchs D 4", "t1": "Paraguay", "t2": "Australie"}, "31": {"label": "Matchs D 5", "t1": "Paraguay", "t2": "Turquie"}, "32": {"label": "Matchs D 6", "t1": "Australie", "t2": "Turquie"}, "34": {"label": "Matchs E 1", "t1": "Allemagne", "t2": "Curaçao"}, "35": {"label": "Matchs E 2", "t1": "Allemagne", "t2": "Cote d'ivoire"}, "36": {"label": "Matchs E 3", "t1": "Allemagne", "t2": "Equateur"}, "37": {"label": "Matchs E 4", "t1": "Curaçao", "t2": "Cote d'ivoire"}, "38": {"label": "Matchs E 5", "t1": "Curaçao", "t2": "Equateur"}, "39": {"label": "Matchs E 6", "t1": "Cote d'ivoire", "t2": "Equateur"}, "41": {"label": "Matchs F 1", "t1": "Pays-Bas", "t2": "Japon"}, "42": {"label": "Matchs F 2", "t1": "Pays-Bas", "t2": "Suède"}, "43": {"label": "Matchs F 3", "t1": "Pays-Bas", "t2": "Tunisie"}, "44": {"label": "Matchs F 4", "t1": "Japon", "t2": "Suède"}, "45": {"label": "Matchs F 5", "t1": "Japon", "t2": "Tunisie"}, "46": {"label": "Matchs F 6", "t1": "Suède", "t2": "Tunisie"}, "48": {"label": "Matchs G 1", "t1": "Belgique", "t2": "Egypte"}, "49": {"label": "Matchs G 2", "t1": "Belgique", "t2": "Iran"}, "50": {"label": "Matchs G 3", "t1": "Belgique", "t2": "Nouvelle-Zélande"}, "51": {"label": "Matchs G 4", "t1": "Egypte", "t2": "Iran"}, "52": {"label": "Matchs G 5", "t1": "Egypte", "t2": "Nouvelle-Zélande"}, "53": {"label": "Matchs G 6", "t1": "Iran", "t2": "Nouvelle-Zélande"}, "55": {"label": "Matchs H 1", "t1": "Espagne", "t2": "Cap-Vert"}, "56": {"label": "Matchs H 2", "t1": "Espagne", "t2": "Arabie Saoudite"}, "57": {"label": "Matchs H 3", "t1": "Espagne", "t2": "Uruguay"}, "58": {"label": "Matchs H 4", "t1": "Cap-Vert", "t2": "Arabie Saoudite"}, "59": {"label": "Matchs H 5", "t1": "Cap-Vert", "t2": "Uruguay"}, "60": {"label": "Matchs H 6", "t1": "Arabie Saoudite", "t2": "Uruguay"}, "62": {"label": "Matchs I 1", "t1": "France", "t2": "Sénégal"}, "63": {"label": "Matchs I 2", "t1": "France", "t2": "Irak"}, "64": {"label": "Matchs I 3", "t1": "France", "t2": "Norvège"}, "65": {"label": "Matchs I 4", "t1": "Sénégal", "t2": "Irak"}, "66": {"label": "Matchs I 5", "t1": "Sénégal", "t2": "Norvège"}, "67": {"label": "Matchs I 6", "t1": "Irak", "t2": "Norvège"}, "69": {"label": "Matchs J 1", "t1": "Argentine", "t2": "Algérie"}, "70": {"label": "Matchs J 2", "t1": "Argentine", "t2": "Autriche"}, "71": {"label": "Matchs J 3", "t1": "Argentine", "t2": "Jordanie"}, "72": {"label": "Matchs J 4", "t1": "Algérie", "t2": "Autriche"}, "73": {"label": "Matchs J 5", "t1": "Algérie", "t2": "Jordanie"}, "74": {"label": "Matchs J 6", "t1": "Autriche", "t2": "Jordanie"}, "76": {"label": "Matchs K 1", "t1": "Portugal", "t2": "RD Congo"}, "77": {"label": "Matchs K 2", "t1": "Portugal", "t2": "Ouzbékistan"}, "78": {"label": "Matchs K 3", "t1": "Portugal", "t2": "Colombie"}, "79": {"label": "Matchs K 4", "t1": "RD Congo", "t2": "Ouzbékistan"}, "80": {"label": "Matchs K 5", "t1": "RD Congo", "t2": "Colombie"}, "81": {"label": "Matchs K 6", "t1": "Ouzbékistan", "t2": "Colombie"}, "83": {"label": "Matchs L 1", "t1": "Angleterre", "t2": "Croatie"}, "84": {"label": "Matchs L 2", "t1": "Angleterre", "t2": "Ghana"}, "85": {"label": "Matchs L 3", "t1": "Angleterre", "t2": "Panama"}, "86": {"label": "Matchs L 4", "t1": "Croatie", "t2": "Ghana"}, "87": {"label": "Matchs L 5", "t1": "Croatie", "t2": "Panama"}, "88": {"label": "Matchs L 6", "t1": "Ghana", "t2": "Panama"}}, "days": [{"name": "Jeu 11 juin", "date": "2026-06-11", "rows": [6, 11]}, {"name": "Ven 12 juin", "date": "2026-06-12", "rows": [13, 27]}, {"name": "Sam 13 juin", "date": "2026-06-13", "rows": [18, 20, 25, 32]}, {"name": "Dim 14 juin", "date": "2026-06-14", "rows": [34, 41, 39, 46]}, {"name": "Lun 15 juin", "date": "2026-06-15", "rows": [55, 48, 60, 53]}, {"name": "Mar 16 juin", "date": "2026-06-16", "rows": [62, 67, 69, 74]}, {"name": "Mer 17 juin", "date": "2026-06-17", "rows": [76, 83, 88, 81]}, {"name": "Jeu 18 juin", "date": "2026-06-18", "rows": [10, 17, 14, 7]}, {"name": "Ven 19 juin", "date": "2026-06-19", "rows": [24, 28, 21, 31]}, {"name": "Sam 20 juin", "date": "2026-06-20", "rows": [42, 35, 38, 45]}, {"name": "Dim 21 juin", "date": "2026-06-21", "rows": [56, 49, 59, 52]}, {"name": "Lun 22 juin", "date": "2026-06-22", "rows": [70, 63, 66, 73]}, {"name": "Mar 23 juin", "date": "2026-06-23", "rows": [77, 84, 87, 80]}, {"name": "Mer 24 juin", "date": "2026-06-24", "rows": [15, 16, 22, 23, 8, 9]}, {"name": "Jeu 25 juin", "date": "2026-06-25", "rows": [36, 37, 44, 43, 29, 30]}, {"name": "Ven 26 juin", "date": "2026-06-26", "rows": [64, 65, 58, 57, 51, 50]}, {"name": "Sam 27 juin", "date": "2026-06-27", "rows": [85, 86, 78, 79, 72, 71]}], "players": ["P2", "Gab", "Ivana", "Stutt", "Yannick", "MoMo", "Robin", "Luis", "David", "Maxime", "Greg", "Loic"], "preds": {"P2": {"6": [2, 1], "7": [2, 1], "8": [2, 2], "9": [1, 2], "10": [1, 2], "11": [1, 3], "13": [2, 2], "14": [2, 1], "15": [1, 3], "16": [3, 0], "17": [1, 2], "18": [0, 3], "20": [2, 1], "21": [4, 0], "22": [3, 1], "23": [3, 1], "24": [2, 2], "25": [1, 3], "27": [2, 2], "28": [2, 2], "29": [1, 2], "30": [2, 2], "31": [1, 3], "32": [1, 3], "34": [4, 0], "35": [3, 1], "36": [4, 2], "37": [1, 3], "38": [0, 2], "39": [2, 1], "41": [2, 1], "42": [3, 1], "43": [2, 1], "44": [2, 1], "45": [2, 1], "46": [2, 1], "48": [2, 1], "49": [3, 0], "50": [3, 1], "51": [3, 0], "52": [2, 1], "53": [1, 2], "55": [4, 0], "56": [4, 0], "57": [3, 1], "58": [1, 2], "59": [1, 3], "60": [1, 3], "62": [1, 1], "63": [3, 0], "64": [2, 2], "65": [2, 1], "66": [2, 2], "67": [0, 3], "69": [1, 1], "70": [3, 1], "71": [2, 0], "72": [2, 2], "73": [2, 0], "74": [1, 1], "76": [2, 0], "77": [5, 1], "78": [3, 1], "79": [1, 0], "80": [0, 2], "81": [0, 3], "83": [3, 2], "84": [2, 1], "85": [4, 0], "86": [2, 2], "87": [3, 0], "88": [2, 0]}, "Gab": {"6": [2, 1], "7": [2, 0], "8": [1, 1], "9": [0, 1], "10": [0, 1], "11": [0, 1], "13": [1, 1], "14": [2, 1], "15": [1, 3], "16": [3, 0], "17": [0, 2], "18": [0, 3], "20": [2, 2], "21": [6, 0], "22": [2, 1], "23": [4, 0], "24": [3, 1], "25": [0, 2], "27": [1, 1], "28": [1, 1], "29": [0, 1], "30": [0, 0], "31": [1, 1], "32": [0, 1], "34": [5, 0], "35": [2, 1], "36": [2, 2], "37": [1, 4], "38": [0, 3], "39": [1, 2], "41": [2, 0], "42": [1, 0], "43": [3, 2], "44": [0, 1], "45": [0, 1], "46": [1, 1], "48": [1, 1], "49": [1, 0], "50": [2, 0], "51": [1, 0], "52": [2, 1], "53": [2, 1], "55": [5, 0], "56": [4, 0], "57": [2, 1], "58": [1, 1], "59": [0, 2], "60": [0, 1], "62": [3, 1], "63": [3, 0], "64": [2, 2], "65": [1, 0], "66": [1, 2], "67": [1, 2], "69": [2, 0], "70": [1, 0], "71": [2, 1], "72": [1, 0], "73": [1, 2], "74": [1, 1], "76": [3, 2], "77": [1, 1], "78": [1, 1], "79": [1, 2], "80": [2, 3], "81": [1, 2], "83": [3, 2], "84": [2, 1], "85": [4, 0], "86": [1, 0], "87": [2, 0], "88": [3, 0]}, "Ivana": {"6": [2, 1], "7": [1, 1], "8": [2, 1], "9": [1, 2], "10": [0, 2], "11": [1, 1], "13": [2, 1], "14": [3, 1], "15": [1, 1], "16": [2, 1], "17": [0, 2], "18": [1, 2], "20": [2, 1], "21": [4, 0], "22": [3, 1], "23": [3, 0], "24": [1, 1], "25": [0, 2], "27": [2, 1], "28": [2, 0], "29": [1, 1], "30": [1, 0], "31": [1, 2], "32": [0, 2], "34": [5, 0], "35": [2, 1], "36": [3, 1], "37": [0, 3], "38": [0, 2], "39": [1, 1], "41": [2, 1], "42": [2, 0], "43": [3, 0], "44": [1, 1], "45": [2, 0], "46": [0, 0], "48": [1, 1], "49": [2, 0], "50": [4, 0], "51": [1, 1], "52": [2, 0], "53": [2, 0], "55": [4, 0], "56": [3, 0], "57": [1, 1], "58": [1, 1], "59": [0, 2], "60": [2, 1], "62": [2, 1], "63": [3, 0], "64": [2, 1], "65": [2, 0], "66": [2, 2], "67": [0, 3], "69": [3, 1], "70": [2, 1], "71": [4, 0], "72": [1, 1], "73": [2, 0], "74": [2, 0], "76": [3, 1], "77": [2, 0], "78": [2, 2], "79": [1, 1], "80": [1, 2], "81": [0, 2], "83": [2, 1], "84": [3, 1], "85": [4, 0], "86": [1, 1], "87": [2, 0], "88": [2, 1]}, "Stutt": {"6": [1, 1], "7": [3, 2], "8": [2, 2], "9": [0, 2], "10": [0, 1], "11": [1, 1], "13": [0, 2], "14": [1, 0], "15": [0, 3], "16": [1, 1], "17": [1, 2], "18": [0, 2], "20": [2, 1], "21": [5, 0], "22": [1, 1], "23": [4, 0], "24": [2, 0], "25": [0, 2], "27": [1, 3], "28": [1, 1], "29": [0, 3], "30": [2, 0], "31": [1, 1], "32": [2, 2], "34": [6, 0], "35": [1, 1], "36": [3, 1], "37": [0, 3], "38": [1, 1], "39": [3, 0], "41": [0, 0], "42": [2, 0], "43": [3, 1], "44": [0, 0], "45": [2, 1], "46": [2, 1], "48": [1, 2], "49": [3, 0], "50": [3, 0], "51": [2, 1], "52": [2, 0], "53": [1, 0], "55": [5, 1], "56": [2, 0], "57": [1, 0], "58": [0, 3], "59": [1, 4], "60": [0, 0], "62": [3, 1], "63": [8, 0], "64": [1, 1], "65": [3, 0], "66": [2, 1], "67": [0, 2], "69": [3, 1], "70": [2, 0], "71": [5, 0], "72": [1, 1], "73": [3, 1], "74": [2, 0], "76": [4, 1], "77": [5, 0], "78": [0, 1], "79": [1, 0], "80": [0, 3], "81": [0, 2], "83": [0, 0], "84": [1, 1], "85": [3, 1], "86": [1, 0], "87": [2, 0], "88": [2, 0]}, "Yannick": {"6": [2, 0], "7": [3, 1], "8": [2, 0], "9": [1, 1], "10": [2, 1], "11": [0, 1], "13": [1, 0], "14": [2, 1], "15": [0, 2], "16": [1, 1], "17": [1, 2], "18": [0, 3], "20": [4, 2], "21": [5, 0], "22": [3, 1], "23": [2, 1], "24": [2, 2], "25": [0, 1], "27": [1, 2], "28": [0, 0], "29": [1, 3], "30": [2, 0], "31": [1, 1], "32": [2, 3], "34": [6, 0], "35": [2, 1], "36": [4, 1], "37": [1, 3], "38": [1, 2], "39": [3, 0], "41": [3, 1], "42": [2, 1], "43": [3, 2], "44": [1, 1], "45": [2, 0], "46": [2, 2], "48": [3, 1], "49": [2, 0], "50": [3, 1], "51": [2, 1], "52": [1, 0], "53": [1, 1], "55": [6, 0], "56": [4, 1], "57": [2, 1], "58": [1, 2], "59": [0, 2], "60": [1, 2], "62": [2, 1], "63": [4, 1], "64": [1, 0], "65": [2, 0], "66": [1, 1], "67": [1, 2], "69": [3, 1], "70": [2, 1], "71": [4, 0], "72": [2, 2], "73": [2, 1], "74": [1, 0], "76": [2, 1], "77": [4, 0], "78": [1, 2], "79": [3, 0], "80": [1, 3], "81": [0, 2], "83": [3, 1], "84": [3, 2], "85": [2, 0], "86": [1, 2], "87": [2, 1], "88": [1, 0]}, "MoMo": {"6": [1, 0], "7": [2, 1], "8": [2, 1], "9": [0, 2], "10": [1, 2], "11": [1, 2], "13": [2, 1], "14": [2, 0], "15": [0, 1], "16": [2, 0], "17": [0, 3], "18": [0, 3], "20": [2, 1], "21": [5, 0], "22": [3, 1], "23": [2, 0], "24": [1, 0], "25": [1, 2], "27": [2, 1], "28": [2, 2], "29": [1, 2], "30": [0, 0], "31": [0, 1], "32": [2, 3], "34": [6, 0], "35": [3, 0], "36": [2, 1], "37": [0, 2], "38": [0, 3], "39": [1, 1], "41": [3, 1], "42": [2, 0], "43": [2, 0], "44": [1, 1], "45": [2, 1], "46": [1, 0], "48": [2, 0], "49": [3, 0], "50": [4, 0], "51": [2, 2], "52": [2, 1], "53": [3, 1], "55": [4, 0], "56": [3, 0], "57": [3, 1], "58": [1, 2], "59": [0, 3], "60": [0, 2], "62": [2, 1], "63": [3, 0], "64": [2, 1], "65": [2, 0], "66": [1, 1], "67": [1, 3], "69": [3, 1], "70": [2, 0], "71": [4, 0], "72": [0, 1], "73": [2, 0], "74": [2, 0], "76": [3, 1], "77": [4, 0], "78": [3, 2], "79": [0, 0], "80": [0, 2], "81": [0, 3], "83": [1, 2], "84": [2, 0], "85": [3, 1], "86": [2, 0], "87": [3, 0], "88": [2, 2]}, "Robin": {"6": [2, 0], "7": [1, 0], "8": [1, 1], "9": [0, 0], "10": [2, 2], "11": [1, 2], "13": [2, 2], "14": [1, 0], "15": [0, 1], "16": [0, 0], "17": [1, 2], "18": [0, 2], "20": [1, 1], "21": [5, 0], "22": [2, 0], "23": [3, 0], "24": [2, 1], "25": [0, 2], "27": [0, 2], "28": [1, 1], "29": [1, 3], "30": [2, 1], "31": [1, 1], "32": [0, 0], "34": [9, 0], "35": [3, 1], "36": [2, 1], "37": [1, 4], "38": [0, 5], "39": [1, 2], "41": [3, 1], "42": [1, 1], "43": [1, 0], "44": [1, 2], "45": [1, 0], "46": [2, 1], "48": [2, 1], "49": [2, 0], "50": [3, 1], "51": [1, 0], "52": [2, 0], "53": [1, 1], "55": [6, 0], "56": [3, 1], "57": [2, 0], "58": [1, 3], "59": [0, 4], "60": [2, 3], "62": [2, 1], "63": [3, 0], "64": [2, 1], "65": [2, 1], "66": [1, 1], "67": [0, 2], "69": [2, 1], "70": [2, 0], "71": [3, 0], "72": [0, 0], "73": [2, 0], "74": [2, 1], "76": [2, 0], "77": [3, 0], "78": [2, 3], "79": [3, 1], "80": [1, 3], "81": [0, 2], "83": [0, 0], "84": [2, 1], "85": [3, 0], "86": [1, 0], "87": [2, 0], "88": [3, 1]}, "Luis": {"6": [1, 0], "7": [3, 2], "8": [2, 2], "9": [1, 2], "10": [1, 1], "11": [0, 1], "13": [1, 1], "14": [2, 1], "15": [1, 1], "16": [1, 0], "17": [0, 1], "18": [0, 2], "20": [1, 1], "21": [5, 0], "22": [2, 1], "23": [2, 1], "24": [2, 1], "25": [0, 1], "27": [2, 0], "28": [0, 0], "29": [1, 1], "30": [0, 0], "31": [1, 3], "32": [0, 2], "34": [9, 0], "35": [2, 0], "36": [1, 1], "37": [1, 3], "38": [0, 4], "39": [1, 2], "41": [1, 0], "42": [1, 0], "43": [3, 0], "44": [2, 2], "45": [1, 1], "46": [1, 0], "48": [1, 0], "49": [2, 0], "50": [2, 0], "51": [2, 1], "52": [2, 1], "53": [2, 1], "55": [5, 0], "56": [3, 0], "57": [1, 0], "58": [1, 2], "59": [0, 3], "60": [0, 2], "62": [1, 0], "63": [4, 0], "64": [2, 1], "65": [3, 1], "66": [2, 1], "67": [0, 2], "69": [2, 0], "70": [1, 1], "71": [6, 0], "72": [1, 1], "73": [3, 1], "74": [2, 0], "76": [2, 1], "77": [1, 0], "78": [2, 2], "79": [1, 1], "80": [2, 4], "81": [1, 2], "83": [1, 1], "84": [3, 0], "85": [4, 1], "86": [1, 0], "87": [2, 1], "88": [2, 2]}, "David": {"6": [3, 1], "7": [2, 2], "8": [1, 3], "9": [1, 4], "10": [0, 3], "11": [2, 1], "13": [3, 1], "14": [4, 0], "15": [1, 3], "16": [2, 1], "17": [1, 4], "18": [1, 3], "20": [2, 2], "21": [4, 0], "22": [3, 1], "23": [5, 0], "24": [3, 2], "25": [1, 2], "27": [2, 1], "28": [1, 1], "29": [1, 2], "30": [2, 2], "31": [1, 3], "32": [2, 2], "34": [6, 0], "35": [2, 1], "36": [3, 1], "37": [0, 4], "38": [1, 3], "39": [3, 2], "41": [3, 2], "42": [4, 1], "43": [2, 2], "44": [2, 1], "45": [1, 1], "46": [1, 1], "48": [2, 1], "49": [4, 1], "50": [4, 0], "51": [2, 1], "52": [2, 1], "53": [1, 1], "55": [7, 0], "56": [2, 2], "57": [3, 1], "58": [1, 4], "59": [0, 3], "60": [2, 2], "62": [1, 1], "63": [5, 0], "64": [3, 2], "65": [3, 1], "66": [1, 2], "67": [1, 4], "69": [3, 0], "70": [3, 2], "71": [5, 0], "72": [1, 2], "73": [1, 1], "74": [3, 0], "76": [4, 1], "77": [5, 1], "78": [3, 1], "79": [2, 1], "80": [2, 2], "81": [1, 4], "83": [1, 1], "84": [2, 2], "85": [4, 0], "86": [1, 1], "87": [3, 0], "88": [2, 0]}, "Maxime": {"6": [1, 0], "7": [0, 0], "8": [1, 1], "9": [0, 1], "10": [0, 2], "11": [1, 2], "13": [1, 2], "14": [2, 0], "15": [1, 2], "16": [3, 0], "17": [1, 2], "18": [0, 3], "20": [2, 1], "21": [4, 0], "22": [2, 0], "23": [2, 0], "24": [0, 0], "25": [0, 2], "27": [1, 1], "28": [2, 1], "29": [0, 2], "30": [2, 0], "31": [0, 1], "32": [1, 3], "34": [4, 0], "35": [2, 1], "36": [2, 0], "37": [0, 2], "38": [1, 3], "39": [1, 0], "41": [2, 1], "42": [2, 1], "43": [2, 0], "44": [1, 2], "45": [0, 1], "46": [2, 1], "48": [2, 1], "49": [4, 0], "50": [2, 0], "51": [1, 0], "52": [2, 1], "53": [1, 0], "55": [4, 0], "56": [4, 0], "57": [2, 1], "58": [1, 0], "59": [0, 2], "60": [0, 3], "62": [2, 1], "63": [4, 0], "64": [2, 1], "65": [3, 0], "66": [2, 1], "67": [0, 3], "69": [2, 0], "70": [3, 0], "71": [5, 0], "72": [1, 0], "73": [2, 1], "74": [2, 0], "76": [2, 1], "77": [4, 0], "78": [1, 1], "79": [2, 0], "80": [1, 1], "81": [0, 4], "83": [2, 1], "84": [2, 1], "85": [3, 1], "86": [1, 0], "87": [2, 0], "88": [2, 1]}, "Greg": {"6": [2, 1], "7": [1, 1], "8": [2, 1], "9": [0, 2], "10": [1, 3], "11": [0, 1], "13": [0, 1], "14": [3, 1], "15": [0, 3], "16": [3, 0], "17": [1, 2], "18": [0, 4], "20": [2, 3], "21": [5, 0], "22": [2, 1], "23": [4, 0], "24": [2, 1], "25": [1, 2], "27": [2, 1], "28": [1, 2], "29": [2, 2], "30": [0, 1], "31": [1, 2], "32": [1, 0], "34": [6, 0], "35": [2, 1], "36": [2, 1], "37": [1, 2], "38": [0, 3], "39": [2, 3], "41": [3, 1], "42": [2, 1], "43": [3, 2], "44": [2, 1], "45": [1, 1], "46": [1, 0], "48": [3, 1], "49": [4, 0], "50": [5, 0], "51": [2, 1], "52": [3, 0], "53": [2, 1], "55": [5, 0], "56": [4, 1], "57": [3, 2], "58": [2, 1], "59": [1, 3], "60": [0, 4], "62": [1, 2], "63": [4, 0], "64": [2, 1], "65": [2, 0], "66": [0, 2], "67": [1, 1], "69": [3, 1], "70": [4, 1], "71": [5, 0], "72": [1, 2], "73": [2, 1], "74": [3, 1], "76": [3, 1], "77": [4, 0], "78": [2, 3], "79": [2, 0], "80": [1, 3], "81": [0, 4], "83": [3, 2], "84": [2, 1], "85": [3, 0], "86": [2, 2], "87": [3, 0], "88": [1, 1]}, "Loic": {"6": [2, 1], "7": [2, 0], "8": [2, 1], "9": [1, 0], "10": [2, 1], "11": [1, 1], "13": [2, 1], "14": [2, 0], "15": [0, 2], "16": [2, 0], "17": [1, 2], "18": [1, 3], "20": [2, 1], "21": [4, 0], "22": [3, 1], "23": [3, 0], "24": [2, 0], "25": [1, 2], "27": [2, 3], "28": [2, 2], "29": [1, 2], "30": [1, 0], "31": [0, 2], "32": [1, 3], "34": [7, 0], "35": [3, 1], "36": [3, 1], "37": [0, 2], "38": [0, 3], "39": [2, 1], "41": [3, 2], "42": [2, 2], "43": [2, 1], "44": [1, 1], "45": [2, 1], "46": [1, 1], "48": [2, 1], "49": [2, 0], "50": [3, 0], "51": [1, 1], "52": [1, 2], "53": [0, 1], "55": [3, 0], "56": [2, 0], "57": [2, 1], "58": [1, 1], "59": [0, 2], "60": [0, 2], "62": [3, 1], "63": [2, 0], "64": [2, 1], "65": [3, 0], "66": [1, 2], "67": [1, 3], "69": [2, 1], "70": [2, 0], "71": [3, 0], "72": [0, 1], "73": [2, 0], "74": [2, 0], "76": [3, 1], "77": [3, 0], "78": [2, 2], "79": [0, 0], "80": [0, 2], "81": [0, 3], "83": [2, 1], "84": [2, 0], "85": [3, 1], "86": [2, 0], "87": [3, 0], "88": [2, 2]}}, "seedResults": {"6": [2, 0], "11": [2, 1]}, "questions": [{"row": 117, "num": 1, "pts": 21, "text": "Quelle équipe marquera le 1er penalty de la CDM2026 ?"}, {"row": 118, "num": 2, "pts": 21, "text": "Quel joueur marquera le 1er but de la Nati de Suisse ?"}, {"row": 119, "num": 3, "pts": 21, "text": "Quelle équipe encaissera le 1er auto-goal de la CDM2026 ?"}, {"row": 120, "num": 4, "pts": 21, "text": "Quelle équipe marquera le 17ème but de la CDM2026 ?"}, {"row": 121, "num": 5, "pts": 21, "text": "Quelle sera la 1ère lettre du prénom du 1er buteur du match Egypte-Iran ?"}, {"row": 122, "num": 6, "pts": 21, "text": "Combien y aura-t-il de matchs au cours desquels les 2 équipes marqueront au moins un but ?  (temps réglementaire / 104 matchs)"}, {"row": 123, "num": 7, "pts": 21, "text": "Quelle équipe sera la moins bonne 3ème de la phase de poules ?  (points puis différence de buts puis nombre de buts encaissés)"}, {"row": 124, "num": 8, "pts": 21, "text": "Quelle sera la différence de buts marqués/buts encaissés de la Nati au cours de la CDM 2026 ?"}, {"row": 125, "num": 9, "pts": 21, "text": "Combien de cartons jaunes seront sortis au cours des matchs de la Suisse ?"}, {"row": 126, "num": 10, "pts": 21, "text": "Quelle équipe perdra la plus largement son 1/16ème de finale ?  (différence de buts puis plus de buts encaissés / temps réglementaire)"}, {"row": 127, "num": 11, "pts": 21, "text": "Combien de matchs de la CDM2026 iront en prolongations ?  (/32 matchs)"}, {"row": 128, "num": 12, "pts": 21, "text": "Quel sera le score de la finale ?"}, {"row": 129, "num": 13, "pts": 21, "text": "Quelle sera la moyenne de buts par match de la CDM2026 ?"}, {"row": 130, "num": 14, "pts": 21, "text": "A quelle place de notre grand concours de pronostics \"PoufPouf\" se classera la meilleure fille ?"}, {"row": 131, "num": 15, "pts": 15, "text": "Dans un match de quel groupe verra-t-on surgir le 1er carton rouge ?"}, {"row": 132, "num": 16, "pts": 15, "text": "Quand est-ce que Oussmane Dembele marquera son 1er but à la CDM2026?  (au 1er match ; au 2ème match ; au 3ème match ; en 1/16 : en 1/8 ; en 1/4 ; en 1/2 ; en finale ; en août chez le qataris d'Paris...)"}, {"row": 133, "num": 17, "pts": 15, "text": "Entre quelles minutes tombera le 1er but de Autriche-Jordanie ?  (1-9;10-18;19-27;28-36;37-45;46-54;55-63;64-72;73-81;82-90;90+;pas de 1er but)"}, {"row": 134, "num": 18, "pts": 15, "text": "Quel sera le numéro du 1er joueur sortant du match  Brésil-Maroc ?"}, {"row": 135, "num": 19, "pts": 15, "text": "Quelle équipe du groupe K recevra le plus de carton jaune au cumul de ses 3 matchs de groupe ?"}, {"row": 136, "num": 20, "pts": 15, "text": "Quelle équipe aura le meilleur goal-average de la phase de groupes ?"}, {"row": 137, "num": 21, "pts": 15, "text": "Combien y aura-t-il de 0-0 au cours de la phase de groupes?  (/72 matchs)"}, {"row": 138, "num": 22, "pts": 15, "text": "Quelle équipe marquera le plus de buts au cours de la phase de poules ?"}, {"row": 139, "num": 23, "pts": 15, "text": "Entre quelles minutes tombera le but le plus rapide des 1/8 de finales ?  (1-5;6-10;11-15;16-20;21-25;26-30;31-35;36-40;41-45+;46-50;51-55;56-60;61-65;66-70;71-75;76-80;81-85;86-90;90+)"}, {"row": 140, "num": 24, "pts": 15, "text": "Quel sera le nombre total de buts marqués par l'équipe des Pays-Bas au cours de la CDM2026 ?  (sans séances penaltys) "}, {"row": 141, "num": 25, "pts": 15, "text": "Combien de buts seront marqués en 1/2 finales ?  (sans séances penalty)"}, {"row": 142, "num": 26, "pts": 15, "text": "Entre Haïti, Curaçao, la Nouvelle-Zélande, l'Ouzbékistan, le Cap-Vert, la Jordanie et le Panama, quelle équipe aura le meilleur goal-average de la CDM2026 ?"}, {"row": 143, "num": 27, "pts": 15, "text": "Quelle équipe encaissera le moins de buts au cours de la CDM2026 ?"}, {"row": 144, "num": 28, "pts": 15, "text": "Quelle équipe ne marquera aucun but lors de la CDM2026 ?"}, {"row": 145, "num": 29, "pts": 15, "text": "Qui sera 4ème de la CDM2026 ?"}, {"row": 146, "num": 30, "pts": 10, "text": "Pour quelle raison sera sifflé le 1er arrêt de jeu du match d'ouverture ?  (une faute, un hors-jeu, une sortie, un dégagement aux 6 mètres, un coup de coin, un but,une intervention de la VAR, la pause fraîcheur, la mi-temps, un nudiste, un parachutiste, autre chose...) "}, {"row": 147, "num": 31, "pts": 10, "text": "Le derby des \"du Sud\" sera remporté par l'équipe du pays le moins au Sud des deux \"du Sud\", vrai ou faux ?"}, {"row": 148, "num": 32, "pts": 10, "text": "Le résultat de l'addition des numéros des joueurs du 2ème changement du match France-Irak sera-t-il pair ou impair ?"}, {"row": 149, "num": 33, "pts": 10, "text": "Combien de cartons seront sortis par l'arbitre au cours du match entre l'Arabie Saoudite et le Cap-Vert ?  (jaunes+rouges (2jaunes=1rouge=3))"}, {"row": 150, "num": 34, "pts": 10, "text": "Le 2ème but du match RD Congo-Ouzbékistan sera-t-il inscrit au cours de la 1ère mi-temps, au cours de la 2ème mi-temps ou pas de 2ème but ? "}, {"row": 151, "num": 35, "pts": 10, "text": "Combien d'équipes gagneront leurs 3 matchs de groupes ?"}, {"row": 152, "num": 36, "pts": 10, "text": "Quel sera le nombre maximum de buts encaissés en un match par une équipe lors de la phase de groupes ?"}, {"row": 153, "num": 37, "pts": 10, "text": "La Suisse marquera-t-elle au cours de chacun de ses matchs ?"}, {"row": 154, "num": 38, "pts": 10, "text": "Un carton rouge sera-t-il sorti au cours d'un match de la Suisse ?"}, {"row": 155, "num": 39, "pts": 10, "text": "Quelle équipe africaine ira le plus loin dans la compétition ?"}, {"row": 156, "num": 40, "pts": 10, "text": "Combien y aura-t-il d'équipe européenne en demi-finales ? "}, {"row": 157, "num": 41, "pts": 10, "text": "Le dernier but de la finale (sans séances penalty) tombera-t-il à une minute pair ou impair ?"}, {"row": 158, "num": 42, "pts": 10, "text": "Quel sera le plus grand total de buts inscrits au cours d'un match de la CDM2026 ?  (temps réglementaire)"}, {"row": 159, "num": 43, "pts": 10, "text": "Quel âge aura le 1er buteur de la finale ?  (-23,24-26,27-29,30-32,+33) "}, {"row": 160, "num": 44, "pts": 10, "text": "De quel continent sera le meilleur buteur de la CDM2026"}], "answers": {"P2": {"117": "Mexique", "118": "Manzambi", "119": "Afrique du Sud", "120": "USA", "121": "M", "122": "93", "123": "Arabie Saoudite", "124": "2", "125": "7", "126": "Ecosse", "127": "8", "128": "3-2", "129": "2", "130": "5", "131": "B", "132": "au 2ème match", "133": "10-18", "134": "5", "135": "RD Congo", "136": "Espagne", "137": "9", "138": "Espagne", "139": "6-10", "140": "9", "141": "6", "142": "Nouvelle-Zélande", "143": "Espagne", "144": "Haiti", "145": "Argentine", "146": "une sortie", "147": "vrai", "148": "impair", "149": "5", "150": "en 2ème mi-temps", "151": "4", "152": "5", "153": "oui", "154": "oui", "155": "Maroc", "156": "2", "157": "impair", "158": "7", "159": "24-26 ans", "160": "Europe"}, "Gab": {"117": "Mexique", "118": "Embolo", "119": "USA", "120": "Ecosse", "121": "M", "122": "77", "123": "USA", "124": "+2", "125": "19", "126": "Tunisie", "127": "10", "128": "2-1", "129": "2.8", "130": "5", "131": "D", "132": "en 1/16 de finale", "133": "19-27", "134": "11", "135": "RD Congo", "136": "Espagne", "137": "6", "138": "France", "139": "1-5", "140": "13", "141": "5", "142": "Jordanie", "143": "Argentine", "144": "Curaçao", "145": "Brésil", "146": "une sortie", "147": "faux", "148": "pair", "149": "4", "150": "en 1ère mi-temps", "151": "5", "152": "6", "153": "non", "154": "oui", "155": "Egypte", "156": "2", "157": "pair", "158": "7", "159": "33 ans et +", "160": "Europe"}, "Ivana": {"117": "Mexique", "118": "Embolo", "119": "Afrique du Sud", "120": "Argentine", "121": "M", "122": "59", "123": "Nouvelle-Zélande", "124": "+2", "125": "10", "126": "Panama", "127": "8", "128": "2-1", "129": "2.9", "130": "2", "131": "C", "132": "au 2ème match", "133": "28-36", "134": "7", "135": "Colombie", "136": "France", "137": "6", "138": "France", "139": "1-5", "140": "11", "141": "5", "142": "Ouzbékistan", "143": "France", "144": "Nouvelle-Zélande", "145": "Espagne", "146": "une faute", "147": "vrai", "148": "pair", "149": "5", "150": "en 2ème mi-temps", "151": "5", "152": "7", "153": "non", "154": "oui", "155": "Maroc", "156": "3", "157": "impair", "158": "9", "159": "27-29 ans", "160": "Europe"}, "Stutt": {"117": "Corée du Sud", "118": "Ndoye", "119": "USA", "120": "Ecosse", "121": "O", "122": "67", "123": "Iran", "124": "7", "125": "13", "126": "Egypte", "127": "10", "128": "2-0", "129": "2", "130": "7", "131": "D", "132": "au 3ème match", "133": "1-9", "134": "5", "135": "RD Congo", "136": "Espagne", "137": "11", "138": "Suède", "139": "1-5", "140": "6", "141": "5", "142": "Panama", "143": "Espagne", "144": "Haiti", "145": "Portugal", "146": "une sortie", "147": "faux", "148": "pair", "149": "6", "150": "en 1ère mi-temps", "151": "4", "152": "8", "153": "non", "154": "non", "155": "Maroc", "156": "2", "157": "impair", "158": "8", "159": "23 ans et -", "160": "Europe"}, "Yannick": {"117": "Tchéquie", "118": "Amdouni", "119": "Ecosse", "120": "Allemagne", "121": "M", "122": "69", "123": "Tunisie", "124": "+3", "125": "9", "126": "Equateur", "127": "9", "128": "2-0", "129": "2.7", "130": "1", "131": "B", "132": "au 2ème match", "133": "28-36", "134": "13", "135": "RD Congo", "136": "Espagne", "137": "4", "138": "Espagne", "139": "11-15", "140": "12", "141": "4", "142": "Nouvelle-Zélande", "143": "Allemagne", "144": "Ouzbékistan", "145": "Allemagne", "146": "une sortie", "147": "vrai", "148": "impair", "149": "5", "150": "en 1ère mi-temps", "151": "8", "152": "6", "153": "non", "154": "oui", "155": "Sénégal", "156": "3", "157": "pair", "158": "7", "159": "27-29 ans", "160": "Europe"}, "MoMo": {"117": "Corée du Sud", "118": "Embolo", "119": "Afrique du Sud", "120": "Brésil", "121": "M", "122": "58", "123": "Arabie Saoudite", "124": "+4", "125": "6", "126": "Cap-Vert", "127": "6", "128": "2-1", "129": "2.7", "130": "3", "131": "C", "132": "Au 2ème match", "133": "28-36", "134": "10", "135": "Portugal", "136": "Allemagne", "137": "3", "138": "Allemagne", "139": "11-15", "140": "7", "141": "5", "142": "Nouvelle-Zélande", "143": "Argentine", "144": "Curaçao", "145": "Allemagne", "146": "une sortie", "147": "Vrai", "148": "Pair", "149": "5", "150": "Pas de 2ème but", "151": "9", "152": "6", "153": "Oui", "154": "Oui", "155": "Maroc", "156": "3", "157": "Impaire", "158": "6", "159": "27-29 ans", "160": "Europe"}, "Robin": {"117": "Canada", "118": "Ndoye", "119": "Curaçao", "120": "Écosse ", "121": "M", "122": "73", "123": "Iran", "124": "6", "125": "8", "126": "RD Congo", "127": "12", "128": "2-1", "129": "2.8", "130": "7", "131": "D", "132": "au1er match", "133": "28-36", "134": "19", "135": "RD Congo", "136": "Allemagne", "137": "14", "138": "Allemagne", "139": "6-10", "140": "8", "141": "4", "142": "Panama", "143": "Espagne", "144": "Haiti", "145": "Angleterre", "146": "une sortie", "147": "FAUX", "148": "pair", "149": "5", "150": "en 1ère mi-temps", "151": "7", "152": "9", "153": "non", "154": "non", "155": "Egypte", "156": "3", "157": "pair", "158": "9", "159": "24-26 ans", "160": "Europe"}, "Luis": {"117": "Mexique", "118": "Embolo", "119": "Curaçao", "120": "Allemagne", "121": "A", "122": "37", "123": "Arabie Saoudite", "124": "-1", "125": "6", "126": "Arabie Saoudite", "127": "8", "128": "2-1", "129": "2,72", "130": "7ème", "131": "D", "132": "au 3ème match", "133": "19-27", "134": "11", "135": "Portugal", "136": "Allemagne", "137": "4", "138": "Allemagne", "139": "6-10", "140": "6", "141": "4", "142": "Ouzbékistan", "143": "Pays-Bas", "144": "Aucune", "145": "Argentine", "146": "une faute", "147": "vrai", "148": "pair", "149": "1", "150": "en 2ème mi-temps", "151": "4", "152": "9", "153": "non", "154": "non", "155": "Maroc", "156": "3", "157": "impair", "158": "9", "159": "24-26 ans", "160": "Europe"}, "David": {"117": "Canada", "118": "Manzambi", "119": "USA", "120": "Allemagne", "121": "M", "122": "75", "123": "Sénégal", "124": "+5", "125": "16", "126": "Iran", "127": "10", "128": "2-1", "129": "2.3", "130": "4", "131": "E", "132": "au1er match", "133": "10-18", "134": "7", "135": "RD Congo", "136": "Portugal", "137": "7", "138": "Portugal", "139": "1-5", "140": "15", "141": "7", "142": "Ouzbékistan", "143": "Suisse", "144": "Curaçao", "145": "Allemagne", "146": "une sortie", "147": "vrai", "148": "pair", "149": "4", "150": "en 1ère mi-temps", "151": "6", "152": "7", "153": "oui", "154": "non", "155": "Egypte", "156": "3", "157": "impair", "158": "7", "159": "24-26 ans", "160": "Europe"}, "Maxime": {"117": "USA", "118": "Manzambi", "119": "Australie", "120": "Ecosse", "121": "M", "122": "45", "123": "Autriche", "124": "+7", "125": "19", "126": "Algérie", "127": "4", "128": "3-1", "129": "2.5", "130": "7", "131": "C", "132": "au 3ème match", "133": "28-36", "134": "7", "135": "Colombie", "136": "Argentine", "137": "3", "138": "Argentine", "139": "16-20", "140": "9", "141": "6", "142": "Nouvelle-Zélande", "143": "France", "144": "Ouzbékistan", "145": "Espagne", "146": "une sortie", "147": "vrai", "148": "impair", "149": "5", "150": "en 2ème mi-temps", "151": "10", "152": "5", "153": "oui", "154": "oui", "155": "Sénégal", "156": "2", "157": "pair", "158": "5", "159": "27-29 ans", "160": "Europe"}, "Greg": {"117": "Bosnie", "118": "Ndoye", "119": "Curacao", "120": "Maroc", "121": "M", "122": "47", "123": "RD Congo", "124": "+6", "125": "4", "126": "Cote d'ivoire", "127": "7", "128": "3-1", "129": "2.6", "130": "23", "131": "J", "132": "au 2ème match", "133": "19-27", "134": "8", "135": "Colombie", "136": "Espagne", "137": "0", "138": "Espagne", "139": "6-10", "140": "6", "141": "5", "142": "Panama", "143": "Espagne", "144": "Nouvelle-Zélande", "145": "Allemagne", "146": "un 6 mètres", "147": "vrai", "148": "pair", "149": "1", "150": "en 1ère mi-temps", "151": "6", "152": "6", "153": "non", "154": "non", "155": "Maroc", "156": "3", "157": "impair", "158": "6", "159": "27-29 ans", "160": "Europe"}, "Loic": {"117": "Corée du Sud", "118": "Breel Embolo", "119": "Bosnie", "120": "Allemagne", "121": "E", "122": "65", "123": "Algerie", "124": "5", "125": "7", "126": "Tchéquie", "127": "4", "128": "3-2", "129": "2.3", "130": "4", "131": "J", "132": "Au 1ème match", "133": "19-27", "134": "9", "135": "Portugal", "136": "Bresil", "137": "5", "138": "Espagne", "139": "6-10", "140": "6", "141": "7", "142": "Nouvelle-Zélande", "143": "Espagne", "144": "Curaçao", "145": "Allemagne", "146": "une sortie", "147": "False", "148": "Impaire", "149": "2", "150": " 2ème mi temps", "151": "8", "152": "7", "153": "Oui", "154": "non", "155": "Maroc", "156": "2", "157": "paire", "158": "7", "159": "24-26 ans", "160": "Europe"}}, "seedBonus": {"146": ["P2", "Gab", "Stutt", "Yannick", "MoMo", "Robin", "David", "Maxime", "Loic"]}};
+const SKEY = 'poufpouf2026_v2';
+
+/* ---------- state: seed < remote < localStorage < URL hash ---------- */
+let results = Object.assign({}, DB.seedResults);
+let bonus = {}; for(const k in DB.seedBonus){ bonus[k] = DB.seedBonus[k].slice(); }
+let storageOK = true;
+
+function b64uEnc(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function b64uDec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return decodeURIComponent(escape(atob(s)));}
+
+function persist(){
+  if(!storageOK) return;
+  try{ localStorage.setItem(SKEY, JSON.stringify({r:results, b:bonus})); }catch(e){}
+}
+
+async function init(){
+  /* 1. fetch remote results (overrides seed) */
+  try {
+    const resp = await fetch('./resultats.json?_='+Date.now());
+    if(resp.ok){
+      const remote = await resp.json();
+      if(remote.r) results = Object.assign(results, remote.r);
+      if(remote.b) bonus = Object.assign(bonus, remote.b);
+    }
+  } catch(e){}
+
+  /* 2. localStorage (overrides remote — corrections en cours) */
+  try {
+    const saved = JSON.parse(localStorage.getItem(SKEY) || '{}');
+    if(saved.r) results = Object.assign(results, saved.r);
+    if(saved.b) bonus = Object.assign(bonus, saved.b);
+  } catch(e){ storageOK = false; }
+
+  /* 3. URL hash (overrides localStorage) */
+  const m = location.hash.match(/d=([A-Za-z0-9_\-]+)/);
+  if(m){ try {
+    const inc = JSON.parse(b64uDec(m[1]));
+    if(inc.r) results = Object.assign(results, inc.r);
+    if(inc.b) bonus = Object.assign(bonus, inc.b);
+    persist();
+    history.replaceState(null,'',location.pathname);
+    toast('Résultats importés ✓');
+  } catch(e){} }
+
+  renderDaybar(); renderDay(); renderEntry(); renderBonus(); renderLB();
+}
+
+/* ---------- scoring ---------- */
+function outcome(a,b){ return a>b?1:(a<b?-1:0); }
+function pointsFor(pred,res){
+  if(!pred||!res||!Array.isArray(res)) return null;
+  if(pred[0]===res[0]&&pred[1]===res[1]) return 13;
+  if(outcome(pred[0],pred[1])===outcome(res[0],res[1])) return 6;
+  return 0;
+}
+const QPTS = {}; DB.questions.forEach(q=>QPTS[q.row]=q.pts);
+function totals(){
+  const t = {};
+  DB.players.forEach(p=>{ t[p]={pts:0,exact:0,good:0,bonus:0}; });
+  for(const row in results){
+    const res = results[row];
+    if(!Array.isArray(res)) continue;
+    DB.players.forEach(p=>{
+      const pts = pointsFor(DB.preds[p][row], res);
+      if(pts===13){t[p].pts+=13;t[p].exact++;}
+      else if(pts===6){t[p].pts+=6;t[p].good++;}
+    });
+  }
+  for(const qrow in bonus){
+    const pts = QPTS[qrow]||0;
+    (bonus[qrow]||[]).forEach(p=>{ if(t[p]){t[p].pts+=pts; t[p].bonus+=pts;} });
+  }
+  return t;
+}
+
+/* ---------- day view ---------- */
+let selDay = (()=>{
+  const today = new Date().toISOString().slice(0,10);
+  const i = DB.days.findIndex(d=>d.date===today);
+  return i>=0 ? i : 0;
+})();
+
+function renderDaybar(){
+  const bar = document.getElementById('daybar');
+  bar.innerHTML='';
+  DB.days.forEach((d,i)=>{
+    const c=document.createElement('button');
+    c.className='chip'+(i===selDay?' sel':'');
+    c.innerHTML='<span class="n">'+d.name+'</span>';
+    c.onclick=()=>{selDay=i;renderDaybar();renderDay();};
+    bar.appendChild(c);
+  });
+  const sel = bar.children[selDay];
+  if(sel) sel.scrollIntoView({inline:'center',block:'nearest'});
+}
+
+function renderDay(){
+  const wrap=document.getElementById('daymatches');
+  wrap.innerHTML='';
+  DB.days[selDay].rows.forEach(row=>{
+    const m=DB.matches[row], res=results[row];
+    const hasRes = Array.isArray(res);
+    const card=document.createElement('div'); card.className='card';
+    let head='<div class="card-head"><div>'
+      +'<div class="mlabel">'+m.label+'</div>'
+      +'<div class="teams">'+m.t1+' – '+m.t2+'</div></div>'
+      +(hasRes?'<div class="result-pill">'+res[0]+' – '+res[1]+'</div>'
+              :'<div class="result-pill empty">à jouer</div>')
+      +'</div>';
+    let grid='<div class="pgrid">';
+    DB.players.forEach(p=>{
+      const pred=DB.preds[p][row];
+      let cls='', extra='';
+      if(hasRes && pred){
+        const pts=pointsFor(pred,res);
+        if(pts===13){cls=' exact';extra='<span class="pts">+13</span>';}
+        else if(pts===6){cls=' good';extra='<span class="pts">+6</span>';}
+        else {cls=' zero';}
+      }
+      grid+='<div class="pcell'+cls+'"><div class="pname">'+p+'</div>'
+        +'<div class="psc">'+(pred?pred[0]+' – '+pred[1]:'—')+'</div>'+extra+'</div>';
+    });
+    grid+='</div>';
+    card.innerHTML=head+grid;
+    wrap.appendChild(card);
+  });
+}
+
+/* ---------- entry: matches ---------- */
+const drafts={};
+function renderEntry(){
+  const list=document.getElementById('entrylist');
+  list.innerHTML='';
+  DB.days.forEach((d,di)=>{
+    const g=document.createElement('div'); g.className='daygroup'+(di===selDay?' open':'');
+    const done=d.rows.filter(r=>Array.isArray(results[r])).length;
+    const head=document.createElement('button'); head.className='dg-head';
+    head.innerHTML='<span>'+d.name+'</span><span class="cnt">'+done+'/'+d.rows.length+' saisis</span>';
+    head.onclick=()=>g.classList.toggle('open');
+    const body=document.createElement('div'); body.className='dg-body';
+    d.rows.forEach(row=>{
+      const m=DB.matches[row], res=Array.isArray(results[row])?results[row]:['',''];
+      const e=document.createElement('div'); e.className='entry';
+      e.innerHTML='<div class="ename">'+m.t1+' – '+m.t2+'<small>'+m.label+'</small></div>'
+        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[0]+'" data-row="'+row+'" data-side="0">'
+        +'<span class="dash">–</span>'
+        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[1]+'" data-row="'+row+'" data-side="1">';
+      body.appendChild(e);
+    });
+    g.appendChild(head); g.appendChild(body); list.appendChild(g);
+  });
+  list.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', onScoreInput));
+}
+function onScoreInput(ev){
+  const row=ev.target.dataset.row, side=+ev.target.dataset.side;
+  const pair=(drafts[row]||results[row]||[null,null]).slice();
+  const v=ev.target.value;
+  pair[side]= v===''?null:Math.max(0,Math.min(20,parseInt(v,10)||0));
+  if(pair[0]!=null && pair[1]!=null){ results[row]=pair; delete drafts[row]; }
+  else { delete results[row]; drafts[row]=pair; }
+  persist(); renderDay(); renderLB(); refreshEntryCounts();
+}
+function refreshEntryCounts(){
+  document.querySelectorAll('#entrylist .daygroup').forEach((g,di)=>{
+    const d=DB.days[di];
+    const done=d.rows.filter(r=>Array.isArray(results[r])).length;
+    g.querySelector('.cnt').textContent=done+'/'+d.rows.length+' saisis';
+  });
+}
+
+/* ---------- entry: bonus ---------- */
+function renderBonus(){
+  const list=document.getElementById('bonuslist');
+  list.innerHTML='';
+  DB.questions.forEach(q=>{
+    const card=document.createElement('div'); card.className='qcard';
+    const okCount=(bonus[q.row]||[]).length;
+    const head=document.createElement('button'); head.className='q-head';
+    head.innerHTML='<span class="qpts">'+q.pts+' pts</span>'
+      +'<span class="qtxt">Q'+q.num+' · '+q.text+'</span>'
+      +'<span class="qok">'+(okCount? okCount+' ✓':'')+'</span>';
+    head.onclick=()=>card.classList.toggle('open');
+    const body=document.createElement('div'); body.className='q-body';
+    body.innerHTML='<div class="q-hint">Touche les réponses correctes pour attribuer les points :</div>';
+    const grid=document.createElement('div'); grid.className='agrid';
+    DB.players.forEach(p=>{
+      const a=DB.answers[p][q.row]||'—';
+      const cell=document.createElement('button');
+      const isOk=(bonus[q.row]||[]).includes(p);
+      cell.className='acell'+(isOk?' ok':'');
+      cell.innerHTML='<div class="pname">'+p+'</div><div class="aval">'+(a||'—')+'</div>';
+      cell.onclick=()=>{
+        const cur=bonus[q.row]||[];
+        bonus[q.row]= cur.includes(p) ? cur.filter(x=>x!==p) : cur.concat(p);
+        if(bonus[q.row].length===0) delete bonus[q.row];
+        persist(); renderBonus(); renderLB();
+        const reopened=[...document.querySelectorAll('.qcard')][DB.questions.indexOf(q)];
+        if(reopened) reopened.classList.add('open');
+      };
+      grid.appendChild(cell);
+    });
+    body.appendChild(grid);
+    card.appendChild(head); card.appendChild(body); list.appendChild(card);
+  });
+}
+
+/* ---------- leaderboard ---------- */
+function renderLB(){
+  const t=totals();
+  const ranked=DB.players.map(p=>({p,...t[p]})).sort((a,b)=>b.pts-a.pts||b.exact-a.exact);
+  const corrected=Object.keys(results).filter(k=>Array.isArray(results[k])).length;
+  const qdone=Object.keys(bonus).length;
+  document.getElementById('lbmeta').textContent=corrected+' / 72 matchs corrigés · '+qdone+' / 44 questions bonus';
+  const wrap=document.getElementById('lbrows'); wrap.innerHTML='';
+  let lastPts=null, lastRank=0;
+  ranked.forEach((r,i)=>{
+    const rank=(r.pts===lastPts)?lastRank:i+1;
+    lastPts=r.pts; lastRank=rank;
+    const div=document.createElement('div');
+    div.className='lbrow'+(rank===1&&r.pts>0?' lead':'');
+    div.innerHTML='<div class="rank">'+rank+'</div>'
+      +'<div class="who">'+r.p+'<div class="detail">'+r.exact+'× exact · '+r.good+'× vainqueur · +'+r.bonus+' bonus</div></div>'
+      +'<div class="tot">'+r.pts+'</div>';
+    wrap.appendChild(div);
+  });
+}
+
+/* ---------- share / import ---------- */
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+document.getElementById('btn-share').onclick=()=>{
+  const clean={};
+  for(const k in results){ if(Array.isArray(results[k])) clean[k]=results[k]; }
+  const url=location.origin+location.pathname+'#d='+b64uEnc(JSON.stringify({r:clean,b:bonus}));
+  (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(
+    ()=>toast('Lien copié ✓ — envoie-le au groupe'),
+    ()=>{prompt('Copie ce lien :',url);}
+  );
+};
+document.getElementById('btn-import').onclick=()=>{
+  const s=prompt('Colle ici le lien (ou code) reçu :');
+  if(!s) return;
+  const m=s.match(/d=([A-Za-z0-9_\-]+)/)||[null,s.trim()];
+  try{
+    const inc=JSON.parse(b64uDec(m[1]));
+    if(inc.r) results=Object.assign(results,inc.r);
+    if(inc.b) bonus=Object.assign(bonus,inc.b);
+    persist(); renderDay(); renderEntry(); renderBonus(); renderLB();
+    toast('Résultats importés ✓');
+  }catch(e){ toast('Code invalide'); }
+};
+document.getElementById('btn-export').onclick=()=>{
+  const clean={};
+  for(const k in results){ if(Array.isArray(results[k])) clean[k]=results[k]; }
+  const json=JSON.stringify({r:clean,b:bonus},null,2);
+  (navigator.clipboard?navigator.clipboard.writeText(json):Promise.reject()).then(
+    ()=>toast('JSON copié ✓ — colle dans resultats.json sur GitHub'),
+    ()=>{prompt('Copie ce JSON :',json);}
+  );
+};
+
+/* ---------- nav ---------- */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+b.dataset.v).classList.add('active');
+    window.scrollTo({top:0});
+  };
+});
+
+init();
+</script>
+</body>
+</html>
