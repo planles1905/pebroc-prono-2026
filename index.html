@@ -82,6 +82,9 @@ h2{font-family:'Bebas Neue'; font-size:1.15rem; letter-spacing:.12em; color:var(
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
 
 .qcard{border:1px solid var(--stroke); border-radius:13px; margin-bottom:8px; overflow:hidden; background:var(--panel)}
+.qcard.answered{border-color:var(--win); background:rgba(111,203,124,.07)}
+.qcard.answered .q-head{background:rgba(111,203,124,.12)}
+.qcard.answered .qok{color:var(--win)}
 .q-head{width:100%; display:flex; gap:10px; align-items:flex-start; padding:11px 13px; background:var(--panel2);
   border:none; color:var(--chalk); font:inherit; text-align:left; cursor:pointer}
 .q-head .qpts{flex:0 0 auto; font-family:'Bebas Neue'; font-size:1rem; letter-spacing:.05em;
@@ -355,7 +358,9 @@ function renderBonus(){
   const list=document.getElementById('bonuslist');
   list.innerHTML='';
   DB.questions.forEach(q=>{
-    const card=document.createElement('div'); card.className='qcard';
+    const card=document.createElement('div');
+    const hasAnswer = !!correctAnswers[q.row];
+    card.className='qcard'+(hasAnswer?' answered':'');
     const okCount=(bonus[q.row]||[]).length;
     const head=document.createElement('button'); head.className='q-head';
     head.innerHTML='<span class="qpts">'+q.pts+' pts</span>'
