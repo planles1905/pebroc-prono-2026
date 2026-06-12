@@ -307,14 +307,16 @@ function renderEntry(){
       const m=DB.matches[row], res=Array.isArray(results[row])?results[row]:['',''];
       const e=document.createElement('div'); e.className='entry';
       e.innerHTML='<div class="ename">'+m.t1+' – '+m.t2+'<small>'+m.label+'</small></div>'
-        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[0]+'" data-row="'+row+'" data-side="0" disabled>'
+        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[0]+'" data-row="'+row+'" data-side="0"'+(adminMode?'':' disabled')+'>'
         +'<span class="dash">–</span>'
-        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[1]+'" data-row="'+row+'" data-side="1" disabled>';
+        +'<input type="number" inputmode="numeric" min="0" max="20" value="'+res[1]+'" data-row="'+row+'" data-side="1"'+(adminMode?'':' disabled')+'>';
       body.appendChild(e);
     });
     g.appendChild(head); g.appendChild(body); list.appendChild(g);
   });
-  // Editing disabled: inputs are read-only. To change results, use GitHub edit or the publish API.
+  if(adminMode){
+    list.querySelectorAll('input').forEach(inp=>inp.addEventListener('input', onScoreInput));
+  }
 }
 function onScoreInput(ev){
   const row=ev.target.dataset.row, side=+ev.target.dataset.side;
@@ -354,8 +356,18 @@ function renderBonus(){
       const isOk=(bonus[q.row]||[]).includes(p);
       cell.className='acell'+(isOk?' ok':'');
       cell.innerHTML='<div class="pname">'+p+'</div><div class="aval">'+(a||'—')+'</div>';
-        // Bonus editing disabled in-client. Use GitHub edit or publish API to change bonuses.
+      if(adminMode){
+        cell.onclick=()=>{
+          const cur=bonus[q.row]||[];
+          bonus[q.row]= cur.includes(p) ? cur.filter(x=>x!==p) : cur.concat(p);
+          if(bonus[q.row].length===0) delete bonus[q.row];
+          persist(); renderBonus(); renderLB();
+          const reopened=[...document.querySelectorAll('.qcard')][DB.questions.indexOf(q)];
+          if(reopened) reopened.classList.add('open');
+        };
+      } else {
         cell.disabled = true;
+      }
       grid.appendChild(cell);
     });
     body.appendChild(grid);
