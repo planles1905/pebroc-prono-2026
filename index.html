@@ -472,7 +472,15 @@ function setAdminMode(on){
     else el.setAttribute('disabled','');
   });
   const entryNav = document.querySelector('nav button[data-v="entry"]');
-  if(entryNav){ entryNav.style.display = on ? '' : 'none'; }
+  if(entryNav){
+    entryNav.style.display = on ? '' : 'none';
+    if(on){
+      document.querySelectorAll('nav button').forEach(x=>x.classList.remove('sel'));
+      entryNav.classList.add('sel');
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('view-entry').classList.add('active');
+    }
+  }
   document.getElementById('view-entry').style.display = on ? '' : 'none';
   if(!on && document.getElementById('view-entry').classList.contains('active')){
     document.querySelector('nav button[data-v="day"]').click();
