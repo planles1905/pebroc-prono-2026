@@ -242,6 +242,7 @@ let storageOK = true;
 let groupsReal = {};   // {A:[t1,t2,t3,t4], ...}  keyed by group letter
 let koReal = {};       // {ko16:[...], ko8:[...], ko4:[...], ko2:[...], final:[w,l]}
 let podiumReal = null; // [1st, 2nd, 3rd]
+let koMatches = {};    // {ko16:[[t1,t2,s1,s2],...], ko8:..., ko4:..., ko2:..., third:[[...]], finalm:[[...]]}
 
 function recalculateBonus(){
   bonus = {};
@@ -276,6 +277,7 @@ async function init(){
       if(remote.gs) groupsReal = Object.assign({}, remote.gs);
       if(remote.ko) koReal = Object.assign({}, remote.ko);
       if(remote.pd) podiumReal = remote.pd;
+      if(remote.km) koMatches = Object.assign({}, remote.km);
     }
   } catch(e){}
 
@@ -351,14 +353,36 @@ function computeKo16(){
   return firsts.concat(seconds, thirds.slice(0,8).map(t=>t.team));
 }
 
+// Winners of decided KO matches (score entered, no draw — shoot-outs included in score)
+const KO_SOURCE = {ko8:'ko16', ko4:'ko8', ko2:'ko4', final:'ko2'};
+function winnersOf(matchPhase){
+  const ms = koMatches[matchPhase]||[];
+  const w = [];
+  ms.forEach(m=>{ if(m&&m[2]!=null&&m[3]!=null&&m[2]!==m[3]) w.push(m[2]>m[3]?m[0]:m[1]); });
+  return w;
+}
+
 function effectiveKo(phase){
   const manual = koReal[phase];
   if(manual && manual.length>0) return {teams:manual, auto:false};
   if(phase==='ko16'){
     const comp = computeKo16();
     if(comp) return {teams:comp, auto:true};
+  } else if(KO_SOURCE[phase]){
+    const w = winnersOf(KO_SOURCE[phase]);
+    if(w.length>0) return {teams:w, auto:true};
   }
   return null;
+}
+
+// Podium derived from final + third-place match if not entered manually
+function effectivePodium(){
+  if(podiumReal && podiumReal.some(Boolean)) return {pod:podiumReal, auto:false};
+  const f=(koMatches.finalm||[])[0], t=(koMatches.third||[])[0];
+  const pod=[null,null,null];
+  if(f&&f[2]!=null&&f[3]!=null&&f[2]!==f[3]){ pod[0]=f[2]>f[3]?f[0]:f[1]; pod[1]=f[2]>f[3]?f[1]:f[0]; }
+  if(t&&t[2]!=null&&t[3]!=null&&t[2]!==t[3]){ pod[2]=t[2]>t[3]?t[0]:t[1]; }
+  return pod.some(Boolean) ? {pod, auto:true} : null;
 }
 function totals(){
   const t = {};
@@ -397,22 +421,36 @@ function totals(){
       pred.forEach(team=>{ if(actualSet.has(team)) t[p].pts+=KO_PTS[phase]; });
     });
   }
-  // Podium: 69/29/19 pts per correct position
-  if(podiumReal&&podiumReal.length>=3){
-    const PP=[69,29,19];
+  // Podium: 69/29/19 pts per correct position (manual or derived from finals)
+  const effPod=effectivePodium();
+  if(effPod){
+    const PP=[69,29,19], pod=effPod.pod;
     DB.players.forEach(p=>{
       const pred=DB.podium_preds[p]||[];
-      for(let i=0;i<3;i++){ if(pred[i]&&podiumReal[i]&&pred[i]===podiumReal[i]) t[p].pts+=PP[i]; }
+      for(let i=0;i<3;i++){ if(pred[i]&&pod[i]&&pred[i]===pod[i]) t[p].pts+=PP[i]; }
     });
   }
   return t;
 }
 
 /* ---------- day view ---------- */
+const KO_CAL=[
+  {key:'ko16', label:'1/16', name:'1/16 · 28 juin–3 juil', to:'2026-07-03', next:'ko8',  pts:9},
+  {key:'ko8',  label:'1/8',  name:'1/8 · 4–7 juil',        to:'2026-07-07', next:'ko4',  pts:15},
+  {key:'ko4',  label:'1/4',  name:'1/4 · 9–11 juil',       to:'2026-07-11', next:'ko2',  pts:22},
+  {key:'ko2',  label:'1/2',  name:'1/2 · 14–15 juil',      to:'2026-07-15', next:'final',pts:33},
+  {key:'finals',label:'Finale', name:'Finale · 18–19 juil', to:'2026-07-19'}
+];
+
 let selDay = (()=>{
   const today = new Date().toISOString().slice(0,10);
   const i = DB.days.findIndex(d=>d.date===today);
-  return i>=0 ? i : 0;
+  if(i>=0) return i;
+  if(today > DB.days[DB.days.length-1].date){
+    for(const ph of KO_CAL){ if(today<=ph.to) return ph.key; }
+    return 'finals';
+  }
+  return 0;
 })();
 
 function renderDaybar(){
@@ -425,12 +463,152 @@ function renderDaybar(){
     c.onclick=()=>{selDay=i;renderDaybar();renderDay();};
     bar.appendChild(c);
   });
-  const sel = bar.children[selDay];
+  KO_CAL.forEach(ph=>{
+    const c=document.createElement('button');
+    c.className='chip'+(ph.key===selDay?' sel':'');
+    c.innerHTML='<span class="n">'+ph.name+'</span>';
+    c.onclick=()=>{selDay=ph.key;renderDaybar();renderDay();};
+    bar.appendChild(c);
+  });
+  const sel = bar.querySelector('.sel');
   if(sel) sel.scrollIntoView({inline:'center',block:'nearest'});
+}
+
+/* what each player predicted to advance from this KO match */
+function koPickFor(p, mkey, t1, t2){
+  if(mkey==='third'){ const c=(DB.podium_preds[p]||[])[2]; return [t1,t2].filter(t=>t===c); }
+  if(mkey==='finalm'){ const c=(DB.podium_preds[p]||[])[0]; return [t1,t2].filter(t=>t===c); }
+  const next=(KO_CAL.find(x=>x.key===mkey)||{}).next;
+  const L=((DB.ko[next]||{})[p])||[];
+  return [t1,t2].filter(t=>L.includes(t));
+}
+function koPtsFor(mkey){
+  if(mkey==='third') return 19;
+  if(mkey==='finalm') return 69;
+  return (KO_CAL.find(x=>x.key===mkey)||{}).pts||0;
+}
+
+function ensureTeamDatalist(){
+  if(document.getElementById('teamsdl')) return;
+  const dl=document.createElement('datalist'); dl.id='teamsdl';
+  const set=new Set();
+  for(const g in DB.groups) for(const p in DB.groups[g]) (DB.groups[g][p]||[]).forEach(t=>{ if(t) set.add(t); });
+  [...set].sort().forEach(t=>{ const o=document.createElement('option'); o.value=t; dl.appendChild(o); });
+  document.body.appendChild(dl);
+}
+
+function koMatchCard(mkey, m, mi, slabel){
+  const t1=m[0], t2=m[1], s1=m[2], s2=m[3];
+  const hasScore=s1!=null&&s2!=null;
+  const decided=hasScore&&s1!==s2;
+  const winner=decided?(s1>s2?t1:t2):null;
+  const pts=koPtsFor(mkey);
+  const card=document.createElement('div'); card.className='card';
+  const lbl=slabel||((KO_CAL.find(x=>x.key===mkey)||{}).label+' de finale');
+  let head='<div class="card-head"><div>'
+    +'<div class="mlabel">'+lbl+'</div>'
+    +'<div class="teams">'+t1+' – '+t2+'</div></div>'
+    +(hasScore?'<div class="result-pill">'+s1+' – '+s2+'</div>':'<div class="result-pill empty">à jouer</div>')
+    +'</div>';
+  let grid='<div class="pgrid">';
+  DB.players.forEach(p=>{
+    const picks=koPickFor(p,mkey,t1,t2);
+    let cls='', extra='';
+    if(decided){
+      if(picks.includes(winner)){cls=' good';extra='<span class="pts">+'+pts+'</span>';}
+      else cls=' zero';
+    } else if(picks.length===0) cls=' zero';
+    grid+='<div class="pcell'+cls+'"><div class="pname">'+p+'</div>'
+      +'<div class="psc" style="font-family:Inter;font-size:.68rem;font-weight:600;letter-spacing:0;line-height:1.25">'
+      +(picks.length?picks.join(' / '):'—')+'</div>'+extra+'</div>';
+  });
+  grid+='</div>';
+  card.innerHTML=head+grid;
+  if(adminMode){
+    const bar=document.createElement('div');
+    bar.style.cssText='display:flex;gap:8px;align-items:center;padding:9px 12px;border-top:1px solid var(--stroke)';
+    const mkInp=(side)=>{
+      const inp=document.createElement('input');
+      inp.type='number'; inp.inputMode='numeric'; inp.min=0; inp.max=20;
+      inp.style.cssText='width:46px;height:38px;text-align:center;font-family:Bebas Neue;font-size:1.2rem;background:var(--pitch);color:var(--chalk);border:1px solid var(--stroke);border-radius:9px';
+      inp.value=m[2+side]==null?'':m[2+side];
+      inp.onchange=()=>{
+        const v=inp.value;
+        m[2+side]= v===''?null:Math.max(0,Math.min(20,parseInt(v,10)||0));
+        renderDay(); renderLB(); renderPhases();
+      };
+      return inp;
+    };
+    const hint=document.createElement('span');
+    hint.style.cssText='font-size:.66rem;color:var(--muted);flex:1';
+    hint.textContent='Score final (t.a.b. inclus — pas d’égalité)';
+    const del=document.createElement('button');
+    del.className='btn ghost'; del.textContent='✕'; del.style.cssText='padding:6px 11px;margin:0';
+    del.onclick=()=>{
+      if(!confirm('Supprimer ce match ?')) return;
+      koMatches[mkey].splice(mi,1);
+      if(koMatches[mkey].length===0) delete koMatches[mkey];
+      renderDay(); renderLB(); renderPhases();
+    };
+    const dash=document.createElement('span'); dash.className='dash'; dash.textContent='–';
+    bar.appendChild(hint); bar.appendChild(mkInp(0)); bar.appendChild(dash); bar.appendChild(mkInp(1)); bar.appendChild(del);
+    card.appendChild(bar);
+  }
+  return card;
+}
+
+function koAddForm(mkey, slabel){
+  ensureTeamDatalist();
+  const block=document.createElement('div'); block.className='admin-block';
+  block.innerHTML='<label>Ajouter '+(slabel?'le match « '+slabel+' »':'un match')+'</label>';
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;gap:8px;align-items:center';
+  const mkTeam=()=>{
+    const inp=document.createElement('input');
+    inp.className='admin-grp-inp'; inp.type='text'; inp.setAttribute('list','teamsdl');
+    inp.placeholder='Équipe…'; inp.style.flex='1';
+    return inp;
+  };
+  const i1=mkTeam(), i2=mkTeam();
+  const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Ajouter'; btn.style.margin='0';
+  btn.onclick=()=>{
+    const a=i1.value.trim(), b=i2.value.trim();
+    if(!a||!b){ toast('Indique les deux équipes'); return; }
+    if(!koMatches[mkey]) koMatches[mkey]=[];
+    koMatches[mkey].push([a,b,null,null]);
+    renderDay(); renderPhases();
+  };
+  row.appendChild(i1); row.appendChild(i2); row.appendChild(btn);
+  block.appendChild(row);
+  return block;
+}
+
+function renderKoDay(key){
+  const wrap=document.getElementById('daymatches');
+  wrap.innerHTML='';
+  const sections = key==='finals'
+    ? [['third','3e place'],['finalm','Finale']]
+    : [[key,null]];
+  let any=false;
+  sections.forEach(([mkey,slabel])=>{
+    const ms=koMatches[mkey]||[];
+    ms.forEach((m,mi)=>{ any=true; wrap.appendChild(koMatchCard(mkey,m,mi,slabel)); });
+    if(adminMode){
+      const single=(mkey==='third'||mkey==='finalm');
+      if(!single || ms.length<1) wrap.appendChild(koAddForm(mkey,slabel));
+    }
+  });
+  if(!any && !adminMode){
+    const ph=KO_CAL.find(x=>x.key===key);
+    const d=document.createElement('div'); d.className='sharebox';
+    d.innerHTML='<p>Les affiches ('+ph.name+') apparaîtront ici dès qu’elles seront connues.</p>';
+    wrap.appendChild(d);
+  }
 }
 
 function renderDay(){
   const wrap=document.getElementById('daymatches');
+  if(typeof selDay==='string'){ renderKoDay(selDay); return; }
   wrap.innerHTML='';
   DB.days[selDay].rows.forEach(row=>{
     const m=DB.matches[row], res=results[row];
@@ -733,8 +911,10 @@ function renderKoContent(){
   if(adminMode){
     const block=document.createElement('div'); block.className='admin-block';
     const autoNote = isAuto
-      ? ' — <span style="color:var(--win)">32 qualifiés calculés automatiquement</span>, remplir uniquement pour corriger'
-      : (selKoPhase==='ko16'?' — auto dès que les 72 matchs de poules sont corrigés':'');
+      ? ' — <span style="color:var(--win)">qualifiés calculés automatiquement</span>, remplir uniquement pour corriger'
+      : (selKoPhase==='ko16'
+          ? ' — auto dès que les 72 matchs de poules sont corrigés'
+          : ' — auto depuis les scores des matchs du tour précédent (onglet Matchs)');
     block.innerHTML='<label>Qualifiés réels en '+ph.label+' (séparés par des virgules) — '+ph.pts+' pts chaque'+autoNote+'</label>';
     const ta=document.createElement('textarea'); ta.className='admin-ko-area';
     ta.value=(koReal[selKoPhase]||[]).join(', ');
@@ -781,22 +961,28 @@ function renderPodiumContent(){
   const el=document.getElementById('ko-content');
   if(selKoPhase!=='podium'){el.innerHTML='';return;}
   el.innerHTML='';
-  const actual=podiumReal||[null,null,null];
+  const effPod=effectivePodium();
+  const actual=effPod?effPod.pod:[null,null,null];
+  const isAuto=!!(effPod&&effPod.auto);
+  const manual=podiumReal||[null,null,null];
   const PP_LABELS=['🥇 Champion (69 pts)','🥈 Finaliste (29 pts)','🥉 3ème place (19 pts)'];
   const PP=[69,29,19];
 
   if(adminMode){
     const block=document.createElement('div'); block.className='admin-block';
-    block.innerHTML='<label>Podium réel</label>';
+    block.innerHTML='<label>Podium réel'+(isAuto?' — <span style="color:var(--win)">déduit de la finale et de la petite finale</span>':'')+'</label>';
     const inputs=document.createElement('div'); inputs.className='admin-grp-inputs';
     PP_LABELS.forEach((lbl,i)=>{
       const d=document.createElement('div');
       d.innerHTML='<div class="admin-grp-lbl">'+lbl+'</div>';
       const inp=document.createElement('input'); inp.className='admin-grp-inp';
-      inp.type='text'; inp.placeholder='Équipe…'; inp.value=actual[i]||'';
+      inp.type='text';
+      inp.placeholder=(isAuto&&actual[i])?actual[i]+' (auto)':'Équipe…';
+      inp.value=manual[i]||'';
       inp.onchange=()=>{
         if(!podiumReal) podiumReal=[null,null,null];
         podiumReal[i]=inp.value.trim()||null;
+        if(!podiumReal.some(Boolean)) podiumReal=null;
         renderPodiumContent(); renderLB();
       };
       d.appendChild(inp); inputs.appendChild(d);
@@ -876,7 +1062,9 @@ document.getElementById('btn-publish').onclick=async()=>{
     for(const g in groupsReal){ if(groupsReal[g]&&groupsReal[g].some(Boolean)) cleanGs[g]=groupsReal[g]; }
     const cleanKo={};
     for(const ph in koReal){ if(koReal[ph]&&koReal[ph].length>0) cleanKo[ph]=koReal[ph]; }
-    const payload = JSON.stringify({r:clean,ca:correctAnswers,gs:cleanGs,ko:cleanKo,pd:podiumReal||null}, null, 2);
+    const cleanKm={};
+    for(const ph in koMatches){ if(koMatches[ph]&&koMatches[ph].length>0) cleanKm[ph]=koMatches[ph]; }
+    const payload = JSON.stringify({r:clean,ca:correctAnswers,gs:cleanGs,ko:cleanKo,pd:podiumReal||null,km:cleanKm}, null, 2);
     const token = getGithubToken();
     if(token){
       const content = btoa(unescape(encodeURIComponent(payload)));
@@ -935,6 +1123,7 @@ function setAdminMode(on){
   renderEntry();
   renderBonus();
   renderPhases();
+  renderDay();
 }
 
 document.getElementById('btn-admin-lock').onclick = ()=>{
@@ -966,7 +1155,7 @@ let _lastUpdateTime = null;
 function _formatTime(d){ const h=String(d.getHours()).padStart(2,'0'); const m=String(d.getMinutes()).padStart(2,'0'); const s=String(d.getSeconds()).padStart(2,'0'); return h+':'+m+':'+s; }
 function _updateLastUpdateUI(){ const el = document.getElementById('lastUpdate'); if(el) el.textContent = _lastUpdateTime ? 'Mise à jour : '+_formatTime(_lastUpdateTime) : '—'; }
 
-function _makeClean(obj){ const c={}; if(obj && obj.r) c.r = obj.r; else if(obj) c.r = obj; if(obj && obj.b) c.b = obj.b; else if(obj && obj.b===undefined) c.b = {}; return c; }
+function _makeClean(obj){ const c={}; if(obj && obj.r) c.r = obj.r; else if(obj) c.r = obj; if(obj && obj.b) c.b = obj.b; else if(obj && obj.b===undefined) c.b = {}; if(obj){ c.ca=obj.ca||{}; c.gs=obj.gs||{}; c.ko=obj.ko||{}; c.pd=obj.pd||null; c.km=obj.km||{}; } return c; }
 
 function _showRemoteBanner(remote){
   if(document.getElementById('remoteUpdate')) return;
@@ -976,7 +1165,7 @@ function _showRemoteBanner(remote){
   div.innerHTML = 'Nouveaux résultats disponibles — <button id="btn-reload-remote" class="btn">Recharger</button> <button id="btn-apply-remote" class="btn ghost">Appliquer localement</button> <button id="btn-ignore-remote" class="btn ghost">Ignorer</button>';
   document.body.appendChild(div);
   document.getElementById('btn-reload-remote').onclick=()=>{ try{ localStorage.removeItem(SKEY); }catch(e){} location.reload(); };
-  document.getElementById('btn-apply-remote').onclick=()=>{ try{ results = Object.assign({}, remote.r); correctAnswers = Object.assign({}, remote.ca || {}); if(remote.gs) groupsReal=Object.assign({},remote.gs); if(remote.ko) koReal=Object.assign({},remote.ko); if(remote.pd) podiumReal=remote.pd; recalculateBonus(); persist(); renderDay(); renderEntry(); renderBonus(); renderLB(); renderPhases(); toast('Résultats appliqués'); }catch(e){} document.getElementById('remoteUpdate')?.remove(); };
+  document.getElementById('btn-apply-remote').onclick=()=>{ try{ results = Object.assign({}, remote.r); correctAnswers = Object.assign({}, remote.ca || {}); if(remote.gs) groupsReal=Object.assign({},remote.gs); if(remote.ko) koReal=Object.assign({},remote.ko); if(remote.pd) podiumReal=remote.pd; if(remote.km) koMatches=Object.assign({},remote.km); recalculateBonus(); persist(); renderDay(); renderEntry(); renderBonus(); renderLB(); renderPhases(); toast('Résultats appliqués'); }catch(e){} document.getElementById('remoteUpdate')?.remove(); };
   document.getElementById('btn-ignore-remote').onclick=()=>{ document.getElementById('remoteUpdate')?.remove(); };
 }
 
