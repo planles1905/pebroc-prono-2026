@@ -1,0 +1,13 @@
+{
+  "name": "poufpouf-prono-2026",
+  "version": "1.0.0",
+  "description": "Serveur de publication pour le pronostic PoufPouf CDM 2026.",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.4"
+  }
+}
