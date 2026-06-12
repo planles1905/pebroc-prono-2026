@@ -547,9 +547,9 @@ function _showRemoteBanner(remote){
 
 async function startRemotePoll(){
   if(_remotePollRunning) return; _remotePollRunning = true;
-  const POLL = 30 * 1000;
+  const POLL = 10 * 1000; // vérifie plus souvent
   try {
-    const resp = await fetch('./resultats.json?_='+Date.now());
+    const resp = await fetch('./resultats.json?_='+Date.now(), { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
     if(!resp.ok) return setTimeout(()=>{ _remotePollRunning=false; startRemotePoll(); }, POLL);
     const remote = await resp.json();
     const clean = _makeClean(remote);
@@ -565,6 +565,14 @@ async function startRemotePoll(){
   } catch(e){}
   setTimeout(()=>{ _remotePollRunning=false; startRemotePoll(); }, POLL);
 }
+
+// relancer un check quand l'onglet redevient visible (utile sur mobile)
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible'){
+    _remotePollRunning = false;
+    startRemotePoll();
+  }
+});
 
 startRemotePoll();
 
