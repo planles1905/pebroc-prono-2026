@@ -449,6 +449,12 @@ function setAdminMode(on){
   ['btn-publish','btn-admin-link'].forEach(id=>{
     document.getElementById(id).style.display = on ? '' : 'none';
   });
+  const entryNav = document.querySelector('nav button[data-v="entry"]');
+  if(entryNav){ entryNav.style.display = on ? '' : 'none'; }
+  document.getElementById('view-entry').style.display = on ? '' : 'none';
+  if(!on && document.getElementById('view-entry').classList.contains('active')){
+    document.querySelector('nav button[data-v="day"]').click();
+  }
 }
 
 document.getElementById('btn-admin-lock').onclick = ()=>{
@@ -501,7 +507,7 @@ document.querySelectorAll('nav button').forEach(b=>{
   };
 });
 
-setAdminMode(true);
+setAdminMode(false);
 init();
 
 /* déverrouillage automatique via lien admin */
