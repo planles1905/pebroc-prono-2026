@@ -216,13 +216,19 @@ nav button.sel{color:var(--gold)}
     <div class="ptabs" id="ko-tabs"></div>
     <div id="ko-content"></div>
   </section>
+
+  <section id="view-qb" class="view">
+    <h2>Questions bonus</h2>
+    <div id="qblist"></div>
+  </section>
 </main>
 
 <nav>
   <button data-v="day" class="sel"><span class="ic">⚽</span>Matchs</button>
   <button data-v="entry"><span class="ic">0–0</span>Correction</button>
   <button data-v="lb"><span class="ic">№1</span>Classement</button>
-  <button data-v="phases"><span class="ic">★</span>Phases</button>
+  <button data-v="phases"><span class="ic">★</span>Groupe</button>
+  <button data-v="qb"><span class="ic">?</span>QB</button>
 </nav>
 <div class="toast" id="toast"></div>
 
@@ -739,7 +745,12 @@ function refreshEntryCounts(){
 
 /* ---------- entry: bonus ---------- */
 function renderBonus(){
-  const list=document.getElementById('bonuslist');
+  const adminList=document.getElementById('bonuslist');
+  if(adminList) renderBonusInto(adminList, true);
+  const pubList=document.getElementById('qblist');
+  if(pubList) renderBonusInto(pubList, false);
+}
+function renderBonusInto(list, editable){
   list.innerHTML='';
   DB.questions.forEach(q=>{
     const card=document.createElement('div');
@@ -752,8 +763,8 @@ function renderBonus(){
       +'<span class="qok">'+(okCount? okCount+' ✓':'')+'</span>';
     head.onclick=()=>card.classList.toggle('open');
     const body=document.createElement('div'); body.className='q-body';
-    
-    if(adminMode){
+
+    if(editable && adminMode){
       // Admin mode: input field for correct answer
       body.innerHTML='<div class="q-hint">Rentre la bonne réponse :</div>';
       const inputDiv=document.createElement('div');
