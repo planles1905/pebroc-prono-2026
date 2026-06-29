@@ -253,11 +253,13 @@ let koScores = {};     // {matchId:[s1,s2]} — KO fixtures are auto-generated; 
 function recalculateBonus(){
   bonus = {};
   for(const qrow in correctAnswers){
-    const correct = correctAnswers[qrow].toLowerCase().trim();
+    // plusieurs bonnes réponses possibles, séparées par ; ou retour à la ligne
+    const corrects = String(correctAnswers[qrow]).split(/[;\n]/).map(s=>s.toLowerCase().trim()).filter(Boolean);
+    if(!corrects.length) continue;
     const matching = [];
     DB.players.forEach(p=>{
       const playerAnswer = (DB.answers[p][qrow] || '').toLowerCase().trim();
-      if(playerAnswer === correct) matching.push(p);
+      if(playerAnswer && corrects.includes(playerAnswer)) matching.push(p);
     });
     if(matching.length > 0) bonus[qrow] = matching;
   }
@@ -771,8 +773,8 @@ function renderBonusInto(list, editable){
     const body=document.createElement('div'); body.className='q-body';
 
     if(editable && adminMode){
-      // Admin mode: input field for correct answer
-      body.innerHTML='<div class="q-hint">Rentre la bonne réponse :</div>';
+      // Admin mode: input field for correct answer(s) — plusieurs réponses séparées par ;
+      body.innerHTML='<div class="q-hint">Bonne(s) réponse(s) — sépare par <b>;</b> si plusieurs sont acceptées :</div>';
       const inputDiv=document.createElement('div');
       inputDiv.style.marginBottom='12px';
       const input=document.createElement('input');
@@ -785,7 +787,7 @@ function renderBonusInto(list, editable){
       input.style.color='var(--chalk)';
       input.style.fontFamily='Inter';
       input.style.fontSize='.9rem';
-      input.placeholder='Ex: Mexique';
+      input.placeholder='Ex: Mexique ; Brésil';
       input.value = correctAnswers[q.row] || '';
       input.onchange=()=>{
         if(input.value.trim()){
@@ -813,8 +815,9 @@ function renderBonusInto(list, editable){
       });
       body.appendChild(grid);
     } else {
-      // Non-admin: show answer and matching players
-      body.innerHTML='<div class="q-hint">Bonne réponse: <b>'+(correctAnswers[q.row]||'—')+'</b></div>';
+      // Non-admin: show answer(s) and matching players
+      const ans=(correctAnswers[q.row]||'').split(/[;\n]/).map(s=>s.trim()).filter(Boolean);
+      body.innerHTML='<div class="q-hint">'+(ans.length>1?'Bonnes réponses':'Bonne réponse')+': <b>'+(ans.length?ans.join(' · '):'—')+'</b></div>';
       const grid=document.createElement('div'); grid.className='agrid';
       grid.style.marginTop='8px';
       DB.players.forEach(p=>{
